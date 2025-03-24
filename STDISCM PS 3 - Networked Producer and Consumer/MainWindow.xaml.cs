@@ -20,4 +20,15 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
     }
+
+    private void connectBtn_Click(object sender, RoutedEventArgs e)
+    {
+        // Give message box to user
+        MessageBox.Show("Connected to server", "Connection", MessageBoxButton.OK, MessageBoxImage.Information);
+    }
+
+    private void downloadBtn_Click(object sender, RoutedEventArgs e)
+    {
+
+    }
 }

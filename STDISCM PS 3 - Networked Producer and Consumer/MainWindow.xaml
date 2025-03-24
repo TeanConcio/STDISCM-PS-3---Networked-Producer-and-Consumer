@@ -6,7 +6,57 @@
         xmlns:local="clr-namespace:STDISCM_PS_3___Networked_Producer_and_Consumer"
         mc:Ignorable="d"
         Title="MainWindow" Height="450" Width="800">
+    
     <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="40"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        
+        <Button 
+            Grid.Row="0"
+            x:Name="connectBtn" 
+            Content="Connect" 
+            HorizontalAlignment="Left" 
+            Margin="10,10,0,0" 
+            VerticalAlignment="Top" 
+            Width="75" 
+            Click="connectBtn_Click"/>
+
+        <Button 
+            Grid.Row="0"
+            x:Name="downloadBtn" 
+            Content="Download" 
+            HorizontalAlignment="Left" 
+            Margin="90,10,0,0" 
+            VerticalAlignment="Top" 
+            Width="75" 
+            Click="downloadBtn_Click"/>
+
+        <ListView
+            Grid.Row="1"
+            Margin="10,10,10,10" 
+            VerticalAlignment="Stretch"
+            HorizontalAlignment="Stretch" 
+            >
+            
+            <ScrollViewer 
+                x:Name="logScrollViewer" 
+                VerticalScrollBarVisibility="Auto"
+                HorizontalScrollBarVisibility="Auto"
+                >
+
+                <TextBox 
+                x:Name="logTextBox" 
+                Text="CRINGE"
+                HorizontalAlignment="Left" 
+                Margin="0,0,0,0" 
+                VerticalAlignment="Top" 
+                BorderBrush="{x:Null}"/>
+
+            </ScrollViewer>
+        </ListView>
 
     </Grid>
+    
 </Window>
