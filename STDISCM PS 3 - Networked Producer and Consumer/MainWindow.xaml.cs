@@ -34,18 +34,18 @@ public partial class MainWindow : Window
     {
         // Give message box to user
         //MessageBox.Show("Connected to server", "Connection", MessageBoxButton.OK, MessageBoxImage.Information);
-        logTextBox.AppendText("Connecting to producer...\n");
+        //logTextBox.AppendText("Connecting to producer...\n");
 
         try
         {
             client = new TcpClient();
             await client.ConnectAsync(producerIP, port);
             stream = client.GetStream();
-            logTextBox.AppendText("✅ Connected to producer.\n");
+            //logTextBox.AppendText("✅ Connected to producer.\n");
         }
         catch (Exception ex)
         {
-            logTextBox.AppendText("❌ Connection failed: " + ex.Message + "\n");
+            //logTextBox.AppendText("❌ Connection failed: " + ex.Message + "\n");
         }
     }
 
@@ -53,20 +53,20 @@ public partial class MainWindow : Window
     {
         if (stream == null)
         {
-            logTextBox.AppendText("⚠️ Not connected. Click 'Connect' first.\n");
+            //logTextBox.AppendText("⚠️ Not connected. Click 'Connect' first.\n");
             return;
         }
 
         try
         {
-            logTextBox.AppendText("📥 Downloading video...\n");
+            //logTextBox.AppendText("📥 Downloading video...\n");
             using FileStream fileStream = File.Create(savePath);
             await stream.CopyToAsync(fileStream);
-            logTextBox.AppendText("✅ Download complete. Saved to: " + savePath + "\n");
+            //logTextBox.AppendText("✅ Download complete. Saved to: " + savePath + "\n");
         }
         catch (Exception ex)
         {
-            logTextBox.AppendText("❌ Download failed: " + ex.Message + "\n");
+            //logTextBox.AppendText("❌ Download failed: " + ex.Message + "\n");
         }
 
     }
