@@ -42,7 +42,7 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
 
-        LoadVideoList();
+        ReloadVideoList();
     }
 
     public static void GetConfig()
@@ -142,20 +142,21 @@ public partial class MainWindow : Window
 
     private async void connectBtn_Click(object sender, RoutedEventArgs e)
     {
-        // Give message box to user
-        //MessageBox.Show("Connected to server", "Connection", MessageBoxButton.OK, MessageBoxImage.Information);
-        //logTextBox.AppendText("Connecting to producer...\n");
-
         try
         {
+            Console.WriteLine("Connecting to server...");
+
             client = new TcpClient();
             await client.ConnectAsync(producerIPAddress, (int)producerPortNumber);
             stream = client.GetStream();
-            //logTextBox.AppendText("✅ Connected to producer.\n");
+
+            Console.WriteLine("Connected to server");
+            MessageBox.Show("Connected to server", "Connection", MessageBoxButton.OK, MessageBoxImage.Information);
         }
         catch (Exception ex)
         {
-            //logTextBox.AppendText("❌ Connection failed: " + ex.Message + "\n");
+            Console.WriteLine("Error: " + ex.Message);
+            MessageBox.Show("Error: " + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
@@ -163,42 +164,95 @@ public partial class MainWindow : Window
     {
         if (stream == null)
         {
-            //logTextBox.AppendText("⚠️ Not connected. Click 'Connect' first.\n");
+            Console.WriteLine("Please connect to the producer first");
+            MessageBox.Show("Please connect to the producer first", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             return;
         }
 
         try
         {
-            //logTextBox.AppendText("📥 Downloading video...\n");
-            using FileStream fileStream = File.Create(videoFolder);
+            Console.WriteLine("Downloading video...");
+
+            // Ensure the video folder exists
+            if (!Directory.Exists(videoFolder))
+            {
+                Directory.CreateDirectory(videoFolder);
+            }
+
+            // Read the file name length
+            byte[] fileNameLengthBytes = new byte[4];
+            await stream.ReadAsync(fileNameLengthBytes, 0, fileNameLengthBytes.Length);
+            int fileNameLength = BitConverter.ToInt32(fileNameLengthBytes, 0);
+
+            // Read the file name
+            byte[] fileNameBytes = new byte[fileNameLength];
+            await stream.ReadAsync(fileNameBytes, 0, fileNameBytes.Length);
+            string fileName = Encoding.UTF8.GetString(fileNameBytes);
+
+            // Check if the file already exists
+            if (File.Exists(System.IO.Path.Combine(videoFolder, fileName)))
+            {
+                // If the file exists, add a number to the file name
+                int i = 1;
+                string fileNameWithoutExtension = System.IO.Path.GetFileNameWithoutExtension(fileName);
+                string fileExtension = System.IO.Path.GetExtension(fileName);
+                while (File.Exists(System.IO.Path.Combine(videoFolder, fileName)))
+                {
+                    fileName = fileNameWithoutExtension + "_" + i + fileExtension;
+                    i++;
+                }
+
+                Console.WriteLine("File already exists. Renaming to: " + fileName);
+            }
+
+            // Create the file path
+            string filePath = System.IO.Path.Combine(videoFolder, fileName);
+
+            // Receive the file data
+            using FileStream fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None);
             await stream.CopyToAsync(fileStream);
-            //logTextBox.AppendText("✅ Download complete. Saved to: " + savePath + "\n");
+
+            Console.WriteLine("Download complete");
+            MessageBox.Show("Download complete", "Download", MessageBoxButton.OK, MessageBoxImage.Information);
+
+            ReloadVideoList();
         }
         catch (Exception ex)
         {
-            //logTextBox.AppendText("❌ Download failed: " + ex.Message + "\n");
+            Console.WriteLine("Error: " + ex.Message);
+            MessageBox.Show("Error: " + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
-    private void LoadVideoList()
+    private void ReloadVideoList()
     {
-        // Check if video folder exists
-        // if not, create it
-        if (!Directory.Exists(videoFolder))
-        {
-            Directory.CreateDirectory(videoFolder);
-        }
+        // Clear the list
+        VideoList.Items.Clear();
 
-        var videoFiles = Directory.GetFiles(videoFolder, "*.mp4");
-        foreach (var videoFile in videoFiles)
+        try
+        {             
+            // Check if video folder exists
+            // if not, create it
+            if (!Directory.Exists(videoFolder))
+            {
+                Directory.CreateDirectory(videoFolder);
+            }
+            var videoFiles = Directory.GetFiles(videoFolder, "*.mp4");
+            foreach (var videoFile in videoFiles)
+            {
+                VideoList.Items.Add(System.IO.Path.GetFileName(videoFile));
+            }
+        }
+        catch (Exception ex)
         {
-            VideoList.Items.Add(System.IO.Path.GetFileName(videoFile));
+            Console.WriteLine("Error: " + ex.Message);
+            MessageBox.Show("Error: " + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
     private void ListBoxItem_MouseEnter(object sender, MouseEventArgs e)
     {
-        //try {
+        try {
             if (sender is ListBoxItem item && item.Content != null)
             {
                 string videoFileName = item.Content.ToString();
@@ -215,10 +269,11 @@ public partial class MainWindow : Window
                 };
                 timer.Start();
             }
-        //}
-        //catch (Exception ex) {
-        //    MessageBox.Show("Error: " + ex.Message);
-        //}
+        }
+        catch (Exception ex) {
+            Console.WriteLine("Error: " + ex.Message);
+            MessageBox.Show("Error: " + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     private void ListBoxItem_MouseDoubleClick(object sender, MouseButtonEventArgs e)

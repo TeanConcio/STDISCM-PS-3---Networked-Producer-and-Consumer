@@ -1,5 +1,6 @@
 ﻿using System.Net.Sockets;
 using System.Net;
+using System.Text;
 
 namespace STDISCM_PS_3___Networked_Producer_and_Consumer
 {
@@ -97,8 +98,17 @@ namespace STDISCM_PS_3___Networked_Producer_and_Consumer
                 Console.WriteLine("Consumer connected. Sending video...");
 
                 using NetworkStream stream = client.GetStream();
+                string fileName = Path.GetFileName(videoPath);
                 using FileStream fileStream = File.OpenRead(videoPath);
 
+
+                // Send the file name
+                byte[] fileNameBytes = Encoding.UTF8.GetBytes(fileName);
+                byte[] fileNameLengthBytes = BitConverter.GetBytes(fileNameBytes.Length);
+                stream.Write(fileNameLengthBytes, 0, fileNameLengthBytes.Length);
+                stream.Write(fileNameBytes, 0, fileNameBytes.Length);
+
+                // Send the file data
                 fileStream.CopyTo(stream);
                 Console.WriteLine("Video sent to consumer.");
             }
