@@ -12,7 +12,9 @@ namespace STDISCM_PS_3___Networked_Producer_and_Consumer
 
         // Configurations
         private static uint numProducerThreads = DEFAULT_NUMBER_OF_PRODUCER_THREADS;
-        private static uint portNumber = DEFAULT_PRODUCER_PORT_NUMBER;
+        private static uint producerPortNumber = DEFAULT_PRODUCER_PORT_NUMBER;
+
+        private static string videoPath = "./video_folders/video_folder_1/test1.mp4"; // Make sure this file exists
 
         public static void GetConfig()
         {
@@ -62,7 +64,7 @@ namespace STDISCM_PS_3___Networked_Producer_and_Consumer
                         }
                         else
                         {
-                            portNumber = tempPortNumber;
+                            producerPortNumber = tempPortNumber;
                         }
                         break;
                 }
@@ -76,7 +78,7 @@ namespace STDISCM_PS_3___Networked_Producer_and_Consumer
 
             // Print Configurations
             Console.WriteLine("Number of Producer Threads: " + numProducerThreads);
-            Console.WriteLine("Producer Port Number: " + portNumber);
+            Console.WriteLine("Producer Port Number: " + producerPortNumber);
 
             Console.WriteLine();
             Console.WriteLine();
@@ -84,12 +86,9 @@ namespace STDISCM_PS_3___Networked_Producer_and_Consumer
 
         static void Main()
         {
-            int port = 9000;
-            string videoPath = "./video_folders/video_folder_1/test1.mp4"; // Make sure this file exists
-
             try
             {
-                TcpListener listener = new TcpListener(IPAddress.Any, port);
+                TcpListener listener = new TcpListener(IPAddress.Any, (int)producerPortNumber);
                 listener.Start();
                 Console.WriteLine("Producer is waiting for connection...");
 

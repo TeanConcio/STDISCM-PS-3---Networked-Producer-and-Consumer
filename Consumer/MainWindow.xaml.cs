@@ -215,7 +215,8 @@ public partial class MainWindow : Window
             Console.WriteLine("Download complete");
             MessageBox.Show("Download complete", "Download", MessageBoxButton.OK, MessageBoxImage.Information);
 
-            ReloadVideoList();
+            // Add the video to the list
+            VideoList.Items.Add(fileName);
         }
         catch (Exception ex)
         {
