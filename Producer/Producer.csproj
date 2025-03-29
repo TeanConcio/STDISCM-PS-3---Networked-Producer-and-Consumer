@@ -8,8 +8,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-	<Folder Include="video_folder_1\" />
-	<Content Include="video_folder_1\**\*.*">
+	<Content Include="config.txt">
+		<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	</Content>
+	<Content Include="video_folders\**\*.*">
 	  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 	</Content>
   </ItemGroup>

@@ -1,0 +1,8 @@
+# Producer Configuration File
+
+NUMBER_OF_PRODUCER_THREADS (p) = 
+# DEFAULT: 4
+
+PRODUCER_PORT_NUMBER = 
+# Next p number of ports must be open for the producer threads to connect to consumer
+# DEFAULT: 9000

@@ -10,6 +10,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+	<Content Include="config.txt">
+		<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	</Content>
 	<Folder Include="downloaded_videos\" />
 	<Content Include="downloaded_videos\**\*.*">
 	  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
