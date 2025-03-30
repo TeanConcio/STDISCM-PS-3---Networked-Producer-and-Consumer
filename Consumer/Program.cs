@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.IO;
 using System.Windows;
+using System.Collections.Concurrent;
 
 namespace Consumer
 {
@@ -16,21 +17,28 @@ namespace Consumer
         private const uint DEFAULT_NUMBER_OF_CONSUMER_THREADS = 4;
         private const uint DEFAULT_MAX_QUEUE_SIZE = 4;
         private static readonly IPAddress DEFAULT_PRODUCER_IP_ADDRESS = IPAddress.Parse("127.0.0.1");
-        private const uint DEFAULT_PRODUCER_PORT_NUMBER = 9000;
+        private const ushort DEFAULT_PRODUCER_PORT_NUMBER = 9000;
 
         // Configurations
-        private static uint numConsumerThreads = DEFAULT_NUMBER_OF_CONSUMER_THREADS;
-        private static uint maxQueueSize = DEFAULT_MAX_QUEUE_SIZE;
-        private static IPAddress producerIPAddress = DEFAULT_PRODUCER_IP_ADDRESS;
-        private static uint producerPortNumber = DEFAULT_PRODUCER_PORT_NUMBER;
+        public static uint numConsumerThreads = DEFAULT_NUMBER_OF_CONSUMER_THREADS;
+        public static uint maxQueueSize = DEFAULT_MAX_QUEUE_SIZE;
+        public static IPAddress producerIPAddress = DEFAULT_PRODUCER_IP_ADDRESS;
+        public static ushort producerPortNumber = DEFAULT_PRODUCER_PORT_NUMBER;
 
         public const string videoFolder = "./downloaded_videos";
 
         // Producer variables
         private static TcpClient producerClient;
         private static NetworkStream producerStream;
-        private static uint numProducerThreads = 0;
 
+        // Consumer Threads
+        private static ConsumerThread[] consumerThreads;
+
+        // Video Request Queue
+        private static VideoRequestQueue videoRequestQueue;
+
+        // Variables
+        private static bool hasVideosToSend = false;
 
         public static void GetConfig()
         {
@@ -126,6 +134,19 @@ namespace Consumer
             Console.WriteLine();
         }
 
+        public static void Initialize()
+        {
+            consumerThreads = new ConsumerThread[numConsumerThreads];
+
+            for (ushort i = 0; i < numConsumerThreads; i++)
+            {
+                consumerThreads[i] = new ConsumerThread(i);
+            }
+
+            // Initialize video request queue
+            videoRequestQueue = new VideoRequestQueue();
+        }
+
         public static void ConnectToProducer()
         {
             try
@@ -138,14 +159,6 @@ namespace Consumer
                 producerClient.ConnectAsync(producerIPAddress, (int)producerPortNumber).WaitAsync(cts.Token);
                 producerStream = producerClient.GetStream();
                 Console.WriteLine("Connected to producer");
-
-                // Receive the number of producer threads
-                byte[] numProducerThreadsBytes = new byte[4];
-                _ = producerStream.ReadAsync(numProducerThreadsBytes, 0, numProducerThreadsBytes.Length);
-                numProducerThreads = BitConverter.ToUInt32(numProducerThreadsBytes, 0);
-                Console.WriteLine($"Received number of producer threads ({numProducerThreads})");
-
-                // Initialize the consumer threads
 
                 MessageBox.Show("Connected to producer", "Connection", MessageBoxButton.OK, MessageBoxImage.Information);
             }
@@ -161,7 +174,7 @@ namespace Consumer
             }
         }
 
-        public static void DownloadVideo()
+        public static void StartDownloadingVideos()
         {
             if (producerStream == null)
             {
@@ -170,59 +183,61 @@ namespace Consumer
                 return;
             }
 
-            try
+            Console.WriteLine("Starting video downloads...");
+
+            // Start consumer threads
+            foreach (ConsumerThread consumerThread in consumerThreads)
             {
-                Console.WriteLine("Downloading video...");
+                consumerThread.Start();
+            }
 
-                // Ensure the video folder exists
-                if (!Directory.Exists(videoFolder))
+            // Send single byte to producer to start sending videos
+            producerStream.WriteByte(1);
+
+            // Start receiving video requests
+            ReceiveVideoRequests();
+        }
+
+        public static void ReceiveVideoRequests()
+        {
+            hasVideosToSend = true;
+
+            while (hasVideosToSend)
+            {
+                try
                 {
-                    Directory.CreateDirectory(videoFolder);
-                }
-
-                // Read the file name length
-                byte[] fileNameLengthBytes = new byte[4];
-                _ = producerStream.ReadAsync(fileNameLengthBytes, 0, fileNameLengthBytes.Length);
-                int fileNameLength = BitConverter.ToInt32(fileNameLengthBytes, 0);
-
-                // Read the file name
-                byte[] fileNameBytes = new byte[fileNameLength];
-                _ = producerStream.ReadAsync(fileNameBytes, 0, fileNameBytes.Length);
-                string fileName = Encoding.UTF8.GetString(fileNameBytes);
-
-                // Check if the file already exists
-                if (File.Exists(System.IO.Path.Combine(videoFolder, fileName)))
-                {
-                    // If the file exists, add a number to the file name
-                    int i = 1;
-                    string fileNameWithoutExtension = System.IO.Path.GetFileNameWithoutExtension(fileName);
-                    string fileExtension = System.IO.Path.GetExtension(fileName);
-                    while (File.Exists(System.IO.Path.Combine(videoFolder, fileName)))
+                    // First byte says if there are still videos to download
+                    // 0 - No more videos to download
+                    // 1 - There are still videos to download
+                    if (producerStream.ReadByte() == 0)
                     {
-                        fileName = fileNameWithoutExtension + "_" + i + fileExtension;
-                        i++;
+                        hasVideosToSend = false;
+                        break;
                     }
 
-                    Console.WriteLine("File already exists. Renaming to: " + fileName);
+                    // Receive video request
+                    VideoRequest videoRequest = VideoRequest.Decode(producerStream);
+
+                    // Add video request to video request queue
+                    var added = videoRequestQueue.Enqueue(videoRequest);
+
+                    // If successfully added, reply to producer with response byte
+                    // 0 - Not added
+                    // 1 - Added
+                    if (added != null)
+                    {
+                        producerStream.WriteByte(1);
+                    }
+                    else
+                    {
+                        producerStream.WriteByte(0);
+                    }
                 }
-
-                // Create the file path
-                string filePath = System.IO.Path.Combine(videoFolder, fileName);
-
-                // Receive the file data
-                using FileStream fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None);
-                producerStream.CopyToAsync(fileStream);
-
-                Console.WriteLine("Download complete");
-                MessageBox.Show("Download complete", "Download", MessageBoxButton.OK, MessageBoxImage.Information);
-
-                // Add the video to the list
-                STDISCM_PS_3___Networked_Producer_and_Consumer.MainWindow.AddVideoToList(fileName);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("Error: " + ex.Message);
-                MessageBox.Show("Error: " + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                catch (Exception ex)
+                {
+                    Console.WriteLine("Error: " + ex.Message);
+                    MessageBox.Show("Error: " + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
             }
         }
     }

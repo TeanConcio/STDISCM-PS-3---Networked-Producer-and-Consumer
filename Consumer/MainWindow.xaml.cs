@@ -12,9 +12,8 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 using System.Windows.Threading;
-using Consumer;
 
-namespace STDISCM_PS_3___Networked_Producer_and_Consumer;
+namespace Consumer;
 
 /// <summary>
 /// Interaction logic for MainWindow.xaml
@@ -39,7 +38,7 @@ public partial class MainWindow : Window
 
     private async void downloadBtn_Click(object sender, RoutedEventArgs e)
     {
-        Program.DownloadVideo();
+        Program.StartDownloadingVideos();
     }
 
     public static void AddVideoToList(string videoFileName)
