@@ -16,6 +16,9 @@ namespace STDISCM_PS_3___Networked_Producer_and_Consumer
 
         private static string videoPath = "./video_folders/video_folder_1/test1.mp4"; // Make sure this file exists
 
+        private static IPAddress consumerIPAddress;
+        private static ushort consumerPortNumber;
+
         public static void GetConfig()
         {
             Console.WriteLine("Getting Configurations from config.txt");
@@ -94,7 +97,17 @@ namespace STDISCM_PS_3___Networked_Producer_and_Consumer
 
                 using TcpClient client = listener.AcceptTcpClient();
 
-                Console.WriteLine("Consumer connected. Sending video...");
+                if (client == null)
+                {
+                    Console.WriteLine("Error: Consumer not connected.");
+                    return;
+                }
+                consumerIPAddress = ((IPEndPoint)client.Client.RemoteEndPoint).Address;
+                consumerPortNumber = (ushort)((IPEndPoint)client.Client.RemoteEndPoint).Port;
+
+                Console.WriteLine($"Consumer connected from {consumerIPAddress}:{consumerPortNumber}");
+
+                Console.WriteLine("Sending video...");
 
                 using NetworkStream stream = client.GetStream();
                 string fileName = Path.GetFileName(videoPath);
