@@ -99,7 +99,7 @@ public partial class MainWindow : Window
                     }
                     break;
 
-                case "PRODUCER_IP_ADDRESS = ":
+                case "PRODUCER_IP_ADDRESS":
                     if (!IPAddress.TryParse(parts[1].Trim(), out IPAddress tempProducerIPAddress))
                     {
                         Console.WriteLine($"Error: Invalid Producer IP Address. Setting Producer IP Address to {DEFAULT_PRODUCER_IP_ADDRESS}.");
@@ -149,11 +149,18 @@ public partial class MainWindow : Window
             Console.WriteLine("Connecting to server...");
 
             client = new TcpClient();
-            await client.ConnectAsync(producerIPAddress, (int)producerPortNumber);
+            var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10)); // Set timeout to 10 seconds
+
+            await client.ConnectAsync(producerIPAddress, (int)producerPortNumber).WaitAsync(cts.Token);
             stream = client.GetStream();
 
             Console.WriteLine("Connected to server");
             MessageBox.Show("Connected to server", "Connection", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (OperationCanceledException)
+        {
+            Console.WriteLine("Error: Connection timed out");
+            MessageBox.Show("Error: Connection timed out", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         catch (Exception ex)
         {
