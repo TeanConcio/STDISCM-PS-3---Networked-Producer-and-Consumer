@@ -40,6 +40,8 @@ public partial class MainWindow : Window
 
     public MainWindow()
     {
+        GetConfig();
+
         InitializeComponent();
 
         ReloadVideoList();

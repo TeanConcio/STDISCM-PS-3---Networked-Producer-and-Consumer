@@ -89,6 +89,8 @@ namespace STDISCM_PS_3___Networked_Producer_and_Consumer
 
         static void Main()
         {
+            GetConfig();
+
             try
             {
                 TcpListener listener = new TcpListener(IPAddress.Any, (int)producerPortNumber);
