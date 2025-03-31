@@ -35,7 +35,7 @@ namespace Consumer
         private static ConsumerThread[] consumerThreads;
 
         // Video Request Queue
-        private static VideoRequestQueue videoRequestQueue;
+        public static VideoRequestQueue videoRequestQueue;
 
         // Variables
         private static bool hasVideosToSend = false;
@@ -217,6 +217,8 @@ namespace Consumer
 
                     // Receive video request
                     VideoRequest videoRequest = VideoRequest.Decode(producerStream);
+                    Console.WriteLine($"Received request: video = {videoRequest.videoName}, port = {videoRequest.producerPort}");
+
 
                     // Add video request to video request queue
                     var added = videoRequestQueue.Enqueue(videoRequest);

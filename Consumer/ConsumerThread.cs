@@ -29,8 +29,43 @@ namespace Consumer
 
         public void Run()
         {
+            while (true)
+            {
+                // Get video request from the shared queue
+                VideoRequest request = Program.videoRequestQueue.Dequeue();
 
+                if (request == null)
+                {
+                    // Sleep briefly and retry if queue is empty
+                    Thread.Sleep(100);
+                    continue;
+                }
+
+                this.videoName = request.videoName;
+
+                try
+                {
+                    // Connect to the corresponding producer thread
+                    producerThreadClient = new TcpClient();
+                    producerThreadClient.Connect(Program.producerIPAddress, request.producerPort);
+                    producerThreadStream = producerThreadClient.GetStream();
+
+                    Console.WriteLine($"Consumer Thread {id} connected to Producer at port {request.producerPort} for video {request.videoName}");
+
+                    // Receive the video
+                    ReceiveVideo();
+
+                    // Close the stream and connection
+                    producerThreadStream.Close();
+                    producerThreadClient.Close();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Consumer Thread {id} failed to connect to producer at port {request.producerPort}: {ex.Message}");
+                }
+            }
         }
+
 
         private void ReceiveVideo()
         {

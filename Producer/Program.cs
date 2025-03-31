@@ -26,6 +26,8 @@ namespace Producer
         // Producer Threads
         private static ProducerThread[] producerThreads;
 
+        private static readonly object streamLock = new object();
+
         private static void Main()
         {
             GetConfig();
@@ -168,30 +170,34 @@ namespace Producer
 
         public static VideoRequest SendVideoRequest(VideoRequest videoRequest)
         {
-            // First byte says if there are still videos to download
-            // 0 - No more videos to download
-            // 1 - There are still videos to download
-            consumerStream.WriteByte(1);    //TODO: find a way to know if there is no more videos
-
-            // Send video request
-            byte[] videoRequestBytes = VideoRequest.Encode(videoRequest);
-            consumerStream.Write(videoRequestBytes, 0, videoRequestBytes.Length);
-
-            // Get response byte from consumer
-            // 0 - Not added
-            // 1 - Added
-            byte[] response = new byte[1];
-            _ = consumerStream.Read(response, 0, response.Length);
-
-            if (response[0] == 1)
+            lock (streamLock)
             {
-                Console.WriteLine($"Video request for {videoRequest.videoName} sent to consumer.");
-                return videoRequest;
-            }
-            else
-            {
-                Console.WriteLine($"Error: Video request for {videoRequest.videoName} not sent to consumer.");
-                return null;
+                Console.WriteLine($"Sending request: video = {videoRequest.videoName}, port = {videoRequest.producerPort}");
+                // First byte says if there are still videos to download
+                // 0 - No more videos to download
+                // 1 - There are still videos to download
+                consumerStream.WriteByte(1);    //TODO: find a way to know if there is no more videos
+
+                // Send video request
+                byte[] videoRequestBytes = VideoRequest.Encode(videoRequest);
+                consumerStream.Write(videoRequestBytes, 0, videoRequestBytes.Length);
+
+                // Get response byte from consumer
+                // 0 - Not added
+                // 1 - Added
+                byte[] response = new byte[1];
+                _ = consumerStream.Read(response, 0, response.Length);
+
+                if (response[0] == 1)
+                {
+                    Console.WriteLine($"Video request for {videoRequest.videoName} sent to consumer.");
+                    return videoRequest;
+                }
+                else
+                {
+                    Console.WriteLine($"Error: Video request for {videoRequest.videoName} not sent to consumer.");
+                    return null;
+                }
             }
         }
     }

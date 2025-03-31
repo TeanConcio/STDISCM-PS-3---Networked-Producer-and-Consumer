@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
@@ -36,28 +37,63 @@ namespace Producer
 
         public void Run()
         {
-
-        }
-
-        private void SendVideo()
-        {
             try
             {
-                string videoName = videoNames[currentVideoIndex];
+                for (; currentVideoIndex < videoNames.Length; currentVideoIndex++)
+                {
+                    string fullPath = videoNames[currentVideoIndex];
+                    string videoName = Path.GetFileName(fullPath);
 
-                Console.WriteLine($"Producer Thread {id} is sending video {videoName}");
+                    VideoRequest videoRequest = new VideoRequest(portNumber, videoName);
+                    VideoRequest result = Program.SendVideoRequest(videoRequest);
 
-                using FileStream fileStream = File.OpenRead(videoFolderPath + "/" + videoName);
+                    if (result != null)
+                    {
+                        // Wait for the consumer to connect to this port
+                        TcpListener listener = new TcpListener(IPAddress.Any, portNumber);
+                        listener.Start();
+                        Console.WriteLine($"Producer Thread {id} is waiting for consumer connection on port {portNumber}...");
 
-                // Send the file data
-                fileStream.CopyTo(consumerThreadStream);
-                Console.WriteLine("Video sent to consumer.");
+                        consumerThreadClient = listener.AcceptTcpClient();
+                        consumerThreadStream = consumerThreadClient.GetStream();
+
+                        Console.WriteLine($"Producer Thread {id} connected to consumer. Sending video...");
+
+                        // Send video data
+                        SendVideo(fullPath);
+
+                        // Close connection after sending
+                        consumerThreadStream.Close();
+                        consumerThreadClient.Close();
+                        listener.Stop();
+
+                        Console.WriteLine($"Producer Thread {id} finished sending {videoName}.");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Producer Thread {id} dropped video {videoName} due to queue full.");
+                    }
+                }
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Error: " + ex.Message);
+                Console.WriteLine($"Error in Producer Thread {id}: " + ex.Message);
             }
         }
+
+        private void SendVideo(string fullPath)
+        {
+            try
+            {
+                using FileStream fileStream = File.OpenRead(fullPath);
+                fileStream.CopyTo(consumerThreadStream);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error sending video: {ex.Message}");
+            }
+        }
+
 
         public void Start()
         {
