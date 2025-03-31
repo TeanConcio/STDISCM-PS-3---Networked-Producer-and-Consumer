@@ -1,6 +1,6 @@
 # Producer Configuration File
 
-NUMBER_OF_PRODUCER_THREADS (p) = 1
+NUMBER_OF_PRODUCER_THREADS (p) = 4
 # DEFAULT: 4
 
 PRODUCER_PORT_NUMBER = 

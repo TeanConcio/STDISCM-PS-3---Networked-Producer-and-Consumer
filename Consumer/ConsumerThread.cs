@@ -88,7 +88,7 @@ namespace Consumer
 
                 // Receive the file data
                 using FileStream fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None);
-                Task.Run(async() => {await producerThreadStream.CopyToAsync(fileStream);});
+                producerThreadStream.CopyTo(fileStream);
 
                 Console.WriteLine($"Consumer Thread {id} received video {videoName}");
 
