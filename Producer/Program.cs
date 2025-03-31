@@ -28,6 +28,39 @@ namespace Producer
 
         private static readonly object streamLock = new object();
 
+        // Thread to check if all producer threads are finished
+        private static Thread producerThreadStatusChecker = new Thread(() =>
+        {
+            while (true)
+            {
+                bool allFinished = true;
+                foreach (ProducerThread producerThread in producerThreads)
+                {
+                    if (producerThread.state != ProducerThread.State.FINISHED)
+                    {
+                        allFinished = false;
+                        break;
+                    }
+                }
+                if (allFinished)
+                {
+                    break;
+                }
+            }
+            // Send signal to consumer that all videos are sent
+            lock (streamLock)
+            {
+                // First byte says if there are still videos to download
+                // 0 - No more videos to download
+                // 1 - There are still videos to download
+                consumerStream.WriteByte(0);
+
+                // Close the stream and connection
+                consumerStream.Close();
+                consumerClient.Close();
+            }
+        });
+
         private static void Main()
         {
             GetConfig();
@@ -63,7 +96,7 @@ namespace Producer
 
                 switch (parts[0].Trim().ToUpper())
                 {
-                    case "NUMBER_OF_PRODUCER_THREADS (C) = ":
+                    case "NUMBER_OF_PRODUCER_THREADS (P)":
                         if (!uint.TryParse(parts[1].Trim(), out uint tempNumProducerThreads) || tempNumProducerThreads > int.MaxValue || tempNumProducerThreads < 1)
                         {
                             Console.WriteLine($"Error: Invalid Number of Instances. Setting Number of Instances to {DEFAULT_NUMBER_OF_PRODUCER_THREADS}.");
@@ -82,10 +115,10 @@ namespace Producer
                         }
                         break;
 
-                    case "PRODUCER_PORT_NUMBER = ":
+                    case "PRODUCER_PORT_NUMBER":
                         if (!ushort.TryParse(parts[1].Trim(), out ushort tempPortNumber) || tempPortNumber > ushort.MaxValue || tempPortNumber < 1)
                         {
-                            Console.WriteLine($"Error: Invalid Program Port Number. Setting Procuder Port Number to {DEFAULT_PRODUCER_PORT_NUMBER}.");
+                            Console.WriteLine($"Error: Invalid Program Port Number. Setting Producer Port Number to {DEFAULT_PRODUCER_PORT_NUMBER}.");
                             hasErrorWarning = true;
                         }
                         else
@@ -161,6 +194,9 @@ namespace Producer
                 {
                     producerThread.Start();
                 }
+
+                // Start producer thread status checker
+                producerThreadStatusChecker.Start();
             }
             catch (Exception ex)
             {
@@ -168,15 +204,15 @@ namespace Producer
             }
         }
 
-        public static VideoRequest SendVideoRequest(VideoRequest videoRequest)
+        public static VideoRequest SendVideoRequest(uint threadID, VideoRequest videoRequest)
         {
             lock (streamLock)
             {
-                Console.WriteLine($"Sending request: video = {videoRequest.videoName}, port = {videoRequest.producerPort}");
+                Console.WriteLine($"Producer Thread {threadID} is sending request: video = {videoRequest.videoName}, port = {videoRequest.producerPort}");
                 // First byte says if there are still videos to download
                 // 0 - No more videos to download
                 // 1 - There are still videos to download
-                consumerStream.WriteByte(1);    //TODO: find a way to know if there is no more videos
+                consumerStream.WriteByte(1);
 
                 // Send video request
                 byte[] videoRequestBytes = VideoRequest.Encode(videoRequest);

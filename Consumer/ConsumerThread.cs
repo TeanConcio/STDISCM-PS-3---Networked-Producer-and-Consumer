@@ -16,8 +16,6 @@ namespace Consumer
         private TcpClient producerThreadClient;
         private NetworkStream producerThreadStream;
 
-        private string videoName;
-
         private Thread thread;
 
         public ConsumerThread(uint id)
@@ -29,19 +27,18 @@ namespace Consumer
 
         public void Run()
         {
-            while (true)
+            while (Program.hasVideosToSend || Program.videoRequestQueue.Count > 0)
             {
                 // Get video request from the shared queue
                 VideoRequest request = Program.videoRequestQueue.Dequeue();
-
                 if (request == null)
                 {
                     // Sleep briefly and retry if queue is empty
-                    Thread.Sleep(100);
+                    Console.WriteLine($"Consumer Thread {id} queue is empty. Retrying...");
+                    Thread.Sleep(1000);
                     continue;
                 }
-
-                this.videoName = request.videoName;
+                Console.WriteLine($"Consumer Thread {id} dequeued video request for {request.videoName}");
 
                 try
                 {
@@ -53,7 +50,7 @@ namespace Consumer
                     Console.WriteLine($"Consumer Thread {id} connected to Producer at port {request.producerPort} for video {request.videoName}");
 
                     // Receive the video
-                    ReceiveVideo();
+                    ReceiveVideo(request.videoName);
 
                     // Close the stream and connection
                     producerThreadStream.Close();
@@ -66,13 +63,10 @@ namespace Consumer
             }
         }
 
-
-        private void ReceiveVideo()
+        private void ReceiveVideo(string videoName)
         {
             try
             {
-                Console.WriteLine($"Producer Thread {id} is sending video {this.videoName}");
-
                 // Check if the file already exists
                 if (File.Exists(System.IO.Path.Combine(Program.videoFolder, videoName)))
                 {
@@ -94,13 +88,12 @@ namespace Consumer
 
                 // Receive the file data
                 using FileStream fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None);
-                producerThreadStream.CopyToAsync(fileStream);
+                Task.Run(async() => {await producerThreadStream.CopyToAsync(fileStream);});
 
-                Console.WriteLine("Download complete");
-                MessageBox.Show("Download complete", "Download", MessageBoxButton.OK, MessageBoxImage.Information);
+                Console.WriteLine($"Consumer Thread {id} received video {videoName}");
 
                 // Add the video to the list
-                MainWindow.AddVideoToList(videoName);
+                Task.Run(() => MainWindow.AddVideoToList(videoName));
             }
             catch (Exception ex)
             {

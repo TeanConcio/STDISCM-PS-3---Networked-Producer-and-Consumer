@@ -38,7 +38,7 @@ namespace Consumer
         public static VideoRequestQueue videoRequestQueue;
 
         // Variables
-        private static bool hasVideosToSend = false;
+        public static bool hasVideosToSend = false;
 
         public static void GetConfig()
         {
@@ -61,7 +61,7 @@ namespace Consumer
 
                 switch (parts[0].Trim().ToUpper())
                 {
-                    case "NUMBER_OF_CONSUMER_THREADS (C) = ":
+                    case "NUMBER_OF_CONSUMER_THREADS (C)":
                         if (!uint.TryParse(parts[1].Trim(), out uint tempNumConsumerThreads) || tempNumConsumerThreads > int.MaxValue || tempNumConsumerThreads < 1)
                         {
                             Console.WriteLine($"Error: Invalid Number of Instances. Setting Number of Instances to {DEFAULT_NUMBER_OF_CONSUMER_THREADS}.");
@@ -80,7 +80,7 @@ namespace Consumer
                         }
                         break;
 
-                    case "MAX_QUEUE_SIZE (Q) = ":
+                    case "MAX_QUEUE_SIZE (Q)":
                         if (!uint.TryParse(parts[1].Trim(), out uint tempMaxQueueSize) || tempMaxQueueSize > int.MaxValue || tempMaxQueueSize < 1)
                         {
                             Console.WriteLine($"Error: Invalid Max Queue Size. Setting Max Queue Size to {DEFAULT_MAX_QUEUE_SIZE}.");
@@ -104,7 +104,7 @@ namespace Consumer
                         }
                         break;
 
-                    case "PRODUCER_PORT_NUMBER = ":
+                    case "PRODUCER_PORT_NUMBER":
                         if (!ushort.TryParse(parts[1].Trim(), out ushort tempConsumerPortNumber) || tempConsumerPortNumber > ushort.MaxValue || tempConsumerPortNumber < 1)
                         {
                             Console.WriteLine($"Error: Invalid Producer Port Number. Setting Producer Port Number to {DEFAULT_PRODUCER_PORT_NUMBER}.");
@@ -186,6 +186,7 @@ namespace Consumer
             Console.WriteLine("Starting video downloads...");
 
             // Start consumer threads
+            hasVideosToSend = true;
             foreach (ConsumerThread consumerThread in consumerThreads)
             {
                 consumerThread.Start();
@@ -196,6 +197,18 @@ namespace Consumer
 
             // Start receiving video requests
             ReceiveVideoRequests();
+
+            // Disconnect from producer
+            producerStream.Close();
+            producerClient.Close();
+            producerStream = null;
+            producerClient = null;
+
+            Console.WriteLine("Download complete");
+            MessageBox.Show("Download complete", "Download", MessageBoxButton.OK, MessageBoxImage.Information);
+
+            // Reload video list
+            //MainWindow.ReloadVideoList();
         }
 
         public static void ReceiveVideoRequests()
@@ -218,7 +231,6 @@ namespace Consumer
                     // Receive video request
                     VideoRequest videoRequest = VideoRequest.Decode(producerStream);
                     Console.WriteLine($"Received request: video = {videoRequest.videoName}, port = {videoRequest.producerPort}");
-
 
                     // Add video request to video request queue
                     var added = videoRequestQueue.Enqueue(videoRequest);

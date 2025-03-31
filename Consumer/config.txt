@@ -1,6 +1,6 @@
 # Consumer Configuration File
 
-NUMBER_OF_CONSUMER_THREADS (c) = 
+NUMBER_OF_CONSUMER_THREADS (c) = 1
 # DEFAULT: 4
 
 MAX_QUEUE_SIZE (q) = 

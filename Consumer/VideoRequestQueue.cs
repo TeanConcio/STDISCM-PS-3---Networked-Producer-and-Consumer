@@ -9,8 +9,14 @@ namespace Consumer
 {
     class VideoRequestQueue
     {
-        private uint maxQueueSize => Program.maxQueueSize;
+        private static uint maxQueueSize => Program.maxQueueSize;
+        private uint currentQueueSize = VideoRequestQueue.maxQueueSize;
+
         private readonly ConcurrentQueue<VideoRequest> queue;
+
+        public uint Count => (uint)queue.Count;
+
+        private object queueLock = new object();
 
         public VideoRequestQueue()
         {
@@ -19,29 +25,48 @@ namespace Consumer
 
         public VideoRequest Enqueue(VideoRequest videoRequest)
         {
-            if (queue.Count < maxQueueSize)
+            lock (queueLock)
             {
-                queue.Enqueue(videoRequest);
-                Console.WriteLine($"Added video request from {videoRequest.producerPort} for {videoRequest.videoName} to queue");
-                return videoRequest;
-            }
-            else
-            {
-                Console.WriteLine($"Queue is full. Could not add video request from {videoRequest.producerPort} for {videoRequest.videoName}");
-                return null;
+                if (queue.Count < currentQueueSize)
+                {
+                    queue.Enqueue(videoRequest);
+                    Console.WriteLine($"Added video request from {videoRequest.producerPort} for {videoRequest.videoName} to queue");
+                    return videoRequest;
+                }
+                else
+                {
+                    Console.WriteLine($"Queue is full. Could not add video request from {videoRequest.producerPort} for {videoRequest.videoName}");
+                    return null;
+                }
             }
         }
 
         public VideoRequest Dequeue()
         {
-            if (queue.TryDequeue(out VideoRequest videoRequest))
+            lock (queueLock)
             {
-                return videoRequest;
-            }
-            else
-            {
-                return null;
+                if (queue.TryDequeue(out VideoRequest videoRequest))
+                {
+                    //// Remove the slot from the queue
+                    //if (currentQueueSize > 0)
+                    //    currentQueueSize--;
+
+                    return videoRequest;
+                }
+                else
+                {
+                    return null;
+                }
             }
         }
+
+        //public void IncrementSlotBack()
+        //{
+        //    lock (queueLock)
+        //    {
+        //        if (currentQueueSize < maxQueueSize)
+        //            currentQueueSize++;
+        //    }
+        //}
     }
 }

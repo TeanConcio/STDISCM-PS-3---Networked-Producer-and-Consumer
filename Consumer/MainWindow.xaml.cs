@@ -22,7 +22,7 @@ public partial class MainWindow : Window
 {
     private static MainWindow _instance;
 
-    private string videoFolder => Program.videoFolder;
+    private static string videoFolder => Program.videoFolder;
 
     public MainWindow()
     {
@@ -33,12 +33,12 @@ public partial class MainWindow : Window
 
     private async void connectBtn_Click(object sender, RoutedEventArgs e)
     {
-        Program.ConnectToProducer();
+        Task.Run(async () => { Program.ConnectToProducer(); });
     }
 
     private async void downloadBtn_Click(object sender, RoutedEventArgs e)
     {
-        Program.StartDownloadingVideos();
+        Task.Run(async () => { Program.StartDownloadingVideos(); }); 
     }
 
     public static void AddVideoToList(string videoFileName)
@@ -49,10 +49,10 @@ public partial class MainWindow : Window
         });
     }
 
-    private void ReloadVideoList()
+    public static void ReloadVideoList()
     {
         // Clear the list
-        VideoList.Items.Clear();
+        _instance.VideoList.Items.Clear();
 
         try
         {             
@@ -65,7 +65,7 @@ public partial class MainWindow : Window
             var videoFiles = Directory.GetFiles(videoFolder, "*.mp4");
             foreach (var videoFile in videoFiles)
             {
-                VideoList.Items.Add(System.IO.Path.GetFileName(videoFile));
+                _instance.VideoList.Items.Add(System.IO.Path.GetFileName(videoFile));
             }
         }
         catch (Exception ex)

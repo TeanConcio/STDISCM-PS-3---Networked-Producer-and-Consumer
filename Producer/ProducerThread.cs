@@ -10,14 +10,25 @@ namespace Producer
 {
     class ProducerThread
     {
+        public enum State
+        {
+            WAITING_FOR_RETRY,
+            WAITING_FOR_CONSUMER,
+            CURRENTLY_CONNECTED,
+            FINISHED
+        }
+
         public uint id;
         private string videoFolderPath;
         public ushort portNumber;
+        public State state = State.WAITING_FOR_RETRY;
 
         // Video names
         private string[] videoNames;
         private uint currentVideoIndex = 0;
 
+        // Consumer connection
+        private TcpListener listener;
         private TcpClient consumerThreadClient;
         private NetworkStream consumerThreadStream;
 
@@ -37,63 +48,86 @@ namespace Producer
 
         public void Run()
         {
-            try
+            while (state != State.FINISHED)
             {
-                for (; currentVideoIndex < videoNames.Length; currentVideoIndex++)
+                // Get current video name
+                string fullPath = videoNames[currentVideoIndex];
+                string videoName = Path.GetFileName(fullPath);
+
+                switch (state)
                 {
-                    string fullPath = videoNames[currentVideoIndex];
-                    string videoName = Path.GetFileName(fullPath);
+                    case State.WAITING_FOR_RETRY:
+                        // Send video request
+                        VideoRequest videoRequest = new VideoRequest(portNumber, videoName);
+                        var result = Program.SendVideoRequest(id, videoRequest);
 
-                    VideoRequest videoRequest = new VideoRequest(portNumber, videoName);
-                    VideoRequest result = Program.SendVideoRequest(videoRequest);
+                        if (result != null)
+                        {
+                            state = State.WAITING_FOR_CONSUMER;
+                        }
+                        else
+                        {
+                            Thread.Sleep(1000);
+                        }
 
-                    if (result != null)
-                    {
-                        // Wait for the consumer to connect to this port
-                        TcpListener listener = new TcpListener(IPAddress.Any, portNumber);
-                        listener.Start();
-                        Console.WriteLine($"Producer Thread {id} is waiting for consumer connection on port {portNumber}...");
+                        break;
 
-                        consumerThreadClient = listener.AcceptTcpClient();
-                        consumerThreadStream = consumerThreadClient.GetStream();
+                    case State.WAITING_FOR_CONSUMER:
+                        try
+                        {
+                            // Wait for the consumer to connect to this port
+                            listener = new TcpListener(IPAddress.Any, portNumber);
+                            listener.Start();
+                            Console.WriteLine($"Producer Thread {id} is waiting for consumer connection on port {portNumber}...");
 
-                        Console.WriteLine($"Producer Thread {id} connected to consumer. Sending video...");
+                            consumerThreadClient = listener.AcceptTcpClient();
+                            consumerThreadStream = consumerThreadClient.GetStream();
 
-                        // Send video data
-                        SendVideo(fullPath);
+                            Console.WriteLine($"Producer Thread {id} connected to consumer.");
 
-                        // Close connection after sending
-                        consumerThreadStream.Close();
-                        consumerThreadClient.Close();
-                        listener.Stop();
+                            state = State.CURRENTLY_CONNECTED;
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Error in Producer Thread {id}: " + ex.Message);
+                        }
+                        break;
 
-                        Console.WriteLine($"Producer Thread {id} finished sending {videoName}.");
-                    }
-                    else
-                    {
-                        Console.WriteLine($"Producer Thread {id} dropped video {videoName} due to queue full.");
-                    }
+                    case State.CURRENTLY_CONNECTED:
+                        //try
+                        {
+                            using FileStream fileStream = File.OpenRead(fullPath);
+                            fileStream.CopyTo(consumerThreadStream);
+                            Console.WriteLine($"Producer Thread {id} finished sending {videoName}.");
+
+                            // Close connection after sending
+                            consumerThreadStream.Close();
+                            consumerThreadClient.Close();
+                            listener.Stop();
+
+                            // Move to the next video
+                            currentVideoIndex++;
+
+                            // If there are no more videos, finish
+                            if (currentVideoIndex >= videoNames.Length)
+                            {
+                                state = State.FINISHED;
+                            }
+                            else
+                            {
+                                state = State.WAITING_FOR_RETRY;
+                            }
+
+                            break;
+                        }
+                        //catch (Exception ex)
+                        //{
+                        //    Console.WriteLine($"Error sending video: {ex.Message}");
+                        //}
+                        break;
                 }
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error in Producer Thread {id}: " + ex.Message);
-            }
         }
-
-        private void SendVideo(string fullPath)
-        {
-            try
-            {
-                using FileStream fileStream = File.OpenRead(fullPath);
-                fileStream.CopyTo(consumerThreadStream);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error sending video: {ex.Message}");
-            }
-        }
-
 
         public void Start()
         {
