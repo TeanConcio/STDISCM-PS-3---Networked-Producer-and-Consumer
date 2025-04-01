@@ -58,18 +58,27 @@ namespace Producer
                 {
                     case State.WAITING_FOR_RETRY:
                         // Send video request
-                        VideoRequest videoRequest = new VideoRequest(portNumber, videoName);
+                        string hash = ComputeHash(fullPath);
+                        VideoRequest videoRequest = new VideoRequest(portNumber, videoName, hash);
                         var result = Program.SendVideoRequest(id, videoRequest);
 
-                        if (result != null)
+                        switch (result)
                         {
-                            state = State.WAITING_FOR_CONSUMER;
-                        }
-                        else
-                        {
-                            Thread.Sleep(1000);
-                        }
+                            case RequestResult.Accepted:
+                                state = State.WAITING_FOR_CONSUMER;
+                                break;
 
+                            case RequestResult.QueueFull:
+                                Console.WriteLine($"[Producer Thread {id}] Queue full. Retrying {videoName}...");
+                                Thread.Sleep(1000);
+                                break;
+
+                            case RequestResult.Duplicate:
+                                Console.WriteLine($"[Producer Thread {id}] Duplicate: Skipping {videoName}.");
+                                currentVideoIndex++;
+                                state = (currentVideoIndex >= videoNames.Length) ? State.FINISHED : State.WAITING_FOR_RETRY;
+                                break;
+                        }
                         break;
 
                     case State.WAITING_FOR_CONSUMER:
@@ -127,6 +136,14 @@ namespace Producer
                         break;
                 }
             }
+        }
+
+        public static string ComputeHash(string path)
+        {
+            using var sha = System.Security.Cryptography.SHA256.Create();
+            using var stream = File.OpenRead(path);
+            byte[] hash = sha.ComputeHash(stream);
+            return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
         }
 
         public void Start()

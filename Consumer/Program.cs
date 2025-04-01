@@ -40,6 +40,8 @@ namespace Consumer
         // Variables
         public static bool hasVideosToSend = false;
 
+        public static HashSet<string> existingVideoHashes = new HashSet<string>();
+
         public static void GetConfig()
         {
             Console.WriteLine("Getting Configurations from config.txt");
@@ -232,6 +234,14 @@ namespace Consumer
                     VideoRequest videoRequest = VideoRequest.Decode(producerStream);
                     Console.WriteLine($"Received request: video = {videoRequest.videoName}, port = {videoRequest.producerPort}");
 
+
+                    if (existingVideoHashes.Contains(videoRequest.hash))
+                    {
+                        Console.WriteLine($"[CONSUMER] Duplicate video detected (hash: {videoRequest.hash}). Rejecting {videoRequest.videoName}.");
+                        producerStream.WriteByte(2); // new response code for "duplicate"
+                        continue; // skip enqueue
+                    }
+
                     // Add video request to video request queue
                     var added = videoRequestQueue.Enqueue(videoRequest);
 
@@ -240,6 +250,7 @@ namespace Consumer
                     // 1 - Added
                     if (added != null)
                     {
+                        existingVideoHashes.Add(videoRequest.hash);
                         producerStream.WriteByte(1);
                     }
                     else

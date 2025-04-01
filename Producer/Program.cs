@@ -4,6 +4,12 @@ using System.Text;
 
 namespace Producer
 {
+    public enum RequestResult
+    {
+        Accepted,
+        QueueFull,
+        Duplicate
+    }
     class Program
     {
         // Default values for configurations
@@ -27,6 +33,7 @@ namespace Producer
         private static ProducerThread[] producerThreads;
 
         private static readonly object streamLock = new object();
+
 
         // Thread to check if all producer threads are finished
         private static Thread producerThreadStatusChecker = new Thread(() =>
@@ -204,7 +211,7 @@ namespace Producer
             }
         }
 
-        public static VideoRequest SendVideoRequest(uint threadID, VideoRequest videoRequest)
+        public static RequestResult SendVideoRequest(uint threadID, VideoRequest videoRequest)
         {
             lock (streamLock)
             {
@@ -224,16 +231,12 @@ namespace Producer
                 byte[] response = new byte[1];
                 _ = consumerStream.Read(response, 0, response.Length);
 
-                if (response[0] == 1)
+                return response[0] switch
                 {
-                    Console.WriteLine($"Video request for {videoRequest.videoName} sent to consumer.");
-                    return videoRequest;
-                }
-                else
-                {
-                    Console.WriteLine($"Error: Video request for {videoRequest.videoName} not sent to consumer.");
-                    return null;
-                }
+                    1 => RequestResult.Accepted,
+                    2 => RequestResult.Duplicate,
+                    _ => RequestResult.QueueFull,
+                };
             }
         }
     }

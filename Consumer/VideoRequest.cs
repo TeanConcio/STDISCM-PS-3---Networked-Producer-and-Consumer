@@ -11,11 +11,13 @@ namespace Consumer
     {
         public ushort producerPort;
         public string videoName;
+        public string hash;
 
-        public VideoRequest(ushort producerPort, string videoName)
+        public VideoRequest(ushort producerPort, string videoName, string hash)
         {
             this.producerPort = producerPort;
             this.videoName = videoName;
+            this.hash = hash;
         }
 
         // Function to decode VideoRequest from stream
@@ -36,7 +38,15 @@ namespace Consumer
             _ = stream.Read(videoNameBytes, 0, videoNameBytes.Length);
             string videoName = Encoding.UTF8.GetString(videoNameBytes);
 
-            return new VideoRequest(producerThreadPortNumber, videoName);
+            //Get hash
+            byte[] hashLenBytes = new byte[4];
+            stream.Read(hashLenBytes, 0, 4);
+            int hashLen = BitConverter.ToInt32(hashLenBytes, 0);
+            byte[] hashBytes = new byte[hashLen];
+            stream.Read(hashBytes, 0, hashLen);
+            string hash = Encoding.UTF8.GetString(hashBytes);
+
+            return new VideoRequest(producerThreadPortNumber, videoName, hash);
         }
 
         // Function to encode VideoRequest to stream
