@@ -33,11 +33,11 @@ namespace Consumer
                 if (request == null)
                 {
                     // Sleep briefly and retry if queue is empty
-                    Console.WriteLine($"Consumer Thread {id} queue is empty. Retrying...");
+                    Console.WriteLine($"[Consumer Thread {id}] Queue is empty. Retrying...");
                     Thread.Sleep(1000);
                     continue;
                 }
-                Console.WriteLine($"Consumer Thread {id} dequeued video request for {request.videoName}");
+                Console.WriteLine($"[Consumer Thread {id}] Dequeued video request for {request.videoName}");
 
                 try
                 {
@@ -46,7 +46,7 @@ namespace Consumer
                     producerThreadClient.Connect(Program.producerIPAddress, request.producerPort);
                     producerThreadStream = producerThreadClient.GetStream();
 
-                    Console.WriteLine($"Consumer Thread {id} connected to Producer at port {request.producerPort} for video {request.videoName}");
+                    Console.WriteLine($"[Consumer Thread {id}] Connected to Producer at port {request.producerPort} for video {request.videoName}");
 
                     // Receive the video
                     ReceiveVideo(request.videoName);
@@ -57,7 +57,7 @@ namespace Consumer
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Consumer Thread {id} failed to connect to producer at port {request.producerPort}: {ex.Message}");
+                    Console.WriteLine($"[Consumer Thread {id}] Error connecting to producer at port {request.producerPort}: {ex.Message}");
                 }
 
                 // Give back the slot to the queue
@@ -82,27 +82,32 @@ namespace Consumer
                         i++;
                     }
 
-                    Console.WriteLine("File already exists. Renaming to: " + videoName);
+                    Console.WriteLine($"[Consumer Thread {id}] File {videoName} already exists. Renaming to: " + videoName);
                 }
 
                 // Create the file path
                 string filePath = System.IO.Path.Combine(Program.videoFolder, videoName);
 
                 // Receive file, decompress it, and save it
+                using GZipStream gzipStream = new GZipStream(producerThreadStream, CompressionMode.Decompress, true);
                 using FileStream fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None);
-                using GZipStream gzipStream = new GZipStream(producerThreadStream, CompressionMode.Decompress);
-                gzipStream.CopyTo(fileStream);
                 //producerThreadStream.CopyTo(fileStream);
 
-                Console.WriteLine($"Consumer Thread {id} received video {videoName}");
+                gzipStream.CopyTo(fileStream);
+                fileStream.Flush();
+
+                // Log the sizes
+                long decompressedFileSize = new FileInfo(filePath).Length;
+
+                Console.WriteLine($"[Consumer Thread {id}] Received video {videoName} with {decompressedFileSize} bytes");
 
                 // Add the video to the list
                 Task.Run(() => MainWindow.AddVideoToList(videoName));
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Error: " + ex.Message);
-                MessageBox.Show("Error: " + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                Console.WriteLine($"[Consumer Thread {id}] Error receiving video: " + ex.Message);
+                MessageBox.Show("Error receiving video: " + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 

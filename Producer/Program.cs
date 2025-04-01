@@ -51,13 +51,13 @@ namespace Producer
                 StartSendingVideoRequests();
             }
 
-            //Console.WriteLine("Press any key to exit.");
+            //Console.WriteLine("[Main Thread] Press any key to exit.");
             //Console.ReadKey();
         }
 
         public static void GetConfig()
         {
-            Console.WriteLine("Getting Configurations from config.txt");
+            Console.WriteLine("[Main Thread] Getting Configurations from config.txt");
             Console.WriteLine();
 
             bool hasErrorWarning = false;
@@ -79,7 +79,7 @@ namespace Producer
                     case "NUMBER_OF_PRODUCER_THREADS (P)":
                         if (!uint.TryParse(parts[1].Trim(), out uint tempNumProducerThreads) || tempNumProducerThreads > int.MaxValue || tempNumProducerThreads < 1)
                         {
-                            Console.WriteLine($"Error: Invalid Number of Instances. Setting Number of Instances to {DEFAULT_NUMBER_OF_PRODUCER_THREADS}.");
+                            Console.WriteLine($"[Main Thread] Error: Invalid Number of Instances. Setting Number of Instances to {DEFAULT_NUMBER_OF_PRODUCER_THREADS}.");
                             hasErrorWarning = true;
                         }
                         else
@@ -87,7 +87,7 @@ namespace Producer
                             // Check if very large number of instances
                             if (tempNumProducerThreads >= 50)
                             {
-                                Console.WriteLine($"Warning: Very large number of threads. Please expect a very long initialization time.");
+                                Console.WriteLine($"[Main Thread] Warning: Very large number of threads. Please expect a very long initialization time.");
                                 hasErrorWarning = true;
                             }
 
@@ -98,7 +98,7 @@ namespace Producer
                     case "PRODUCER_PORT_NUMBER":
                         if (!ushort.TryParse(parts[1].Trim(), out ushort tempPortNumber) || tempPortNumber > ushort.MaxValue || tempPortNumber < 1)
                         {
-                            Console.WriteLine($"Error: Invalid Program Port Number. Setting Producer Port Number to {DEFAULT_PRODUCER_PORT_NUMBER}.");
+                            Console.WriteLine($"[Main Thread] Error: Invalid Program Port Number. Setting Producer Port Number to {DEFAULT_PRODUCER_PORT_NUMBER}.");
                             hasErrorWarning = true;
                         }
                         else
@@ -116,8 +116,8 @@ namespace Producer
             }
 
             // Print Configurations
-            Console.WriteLine("Number of Program Threads: " + numProducerThreads);
-            Console.WriteLine("Program Port Number: " + producerPortNumber);
+            Console.WriteLine("[Main Thread] Number of Program Threads: " + numProducerThreads);
+            Console.WriteLine("[Main Thread] Program Port Number: " + producerPortNumber);
 
             Console.WriteLine();
             Console.WriteLine();
@@ -141,26 +141,26 @@ namespace Producer
                 // Listen for consumer
                 TcpListener listener = new TcpListener(IPAddress.Any, (int)producerPortNumber);
                 listener.Start();
-                Console.WriteLine("Program is waiting for connection...");
+                Console.WriteLine("[Main Thread] Program is waiting for connection...");
 
                 // Accept consumer connection
                 consumerClient = listener.AcceptTcpClient();
                 if (consumerClient == null)
                 {
-                    Console.WriteLine("Error: Consumer not connected.");
+                    Console.WriteLine("[Main Thread] Error: Consumer not connected.");
                     return;
                 }
                 consumerStream = consumerClient.GetStream();
                 consumerIPAddress = ((IPEndPoint)consumerClient.Client.RemoteEndPoint).Address;
                 consumerPortNumber = (ushort)((IPEndPoint)consumerClient.Client.RemoteEndPoint).Port;
-                Console.WriteLine($"Consumer connected from {consumerIPAddress}:{consumerPortNumber}");
+                Console.WriteLine($"[Main Thread] Consumer connected from {consumerIPAddress}:{consumerPortNumber}");
 
                 listener.Stop();
                 listener = null;
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Error: " + ex.Message);
+                Console.WriteLine("[Main Thread] Error connecting to consumer: " + ex.Message);
             }
         }
 
@@ -187,7 +187,7 @@ namespace Producer
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Error: " + ex.Message);
+                Console.WriteLine("[Main Thread] Error starting sending videos: " + ex.Message);
             }
         }
 
@@ -195,28 +195,36 @@ namespace Producer
         {
             lock (streamLock)
             {
-                Console.WriteLine($"Producer Thread {threadID} is sending request: video = {videoRequest.videoName}, port = {videoRequest.producerPort}");
-                // First byte says if there are still videos to download
-                // 0 - No more videos to download
-                // 1 - There are still videos to download
-                consumerStream.WriteByte(1);
-
-                // Send video request
-                byte[] videoRequestBytes = VideoRequest.Encode(videoRequest);
-                consumerStream.Write(videoRequestBytes, 0, videoRequestBytes.Length);
-
-                // Get response byte from consumer
-                // 0 - Not added
-                // 1 - Added
-                byte[] response = new byte[1];
-                _ = consumerStream.Read(response, 0, response.Length);
-
-                return response[0] switch
+                try
                 {
-                    1 => RequestResult.Accepted,
-                    2 => RequestResult.Duplicate,
-                    _ => RequestResult.QueueFull,
-                };
+                    Console.WriteLine($"[Main Thread] Producer Thread {threadID} is sending request: video = {videoRequest.videoName}, port = {videoRequest.producerPort}");
+                    // First byte says if there are still videos to download
+                    // 0 - No more videos to download
+                    // 1 - There are still videos to download
+                    consumerStream.WriteByte(1);
+
+                    // Send video request
+                    byte[] videoRequestBytes = VideoRequest.Encode(videoRequest);
+                    consumerStream.Write(videoRequestBytes, 0, videoRequestBytes.Length);
+
+                    // Get response byte from consumer
+                    // 0 - Not added
+                    // 1 - Added
+                    byte[] response = new byte[1];
+                    _ = consumerStream.Read(response, 0, response.Length);
+
+                    return response[0] switch
+                    {
+                        1 => RequestResult.Accepted,
+                        2 => RequestResult.Duplicate,
+                        _ => RequestResult.QueueFull,
+                    };
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Main Thread] Error sending video request: {ex.Message}");
+                    return RequestResult.QueueFull;
+                }
             }
         }
 
@@ -242,28 +250,35 @@ namespace Producer
             // Send signal to consumer that all videos are sent
             lock (streamLock)
             {
-                // First byte says if there are still videos to download
-                // 0 - No more videos to download
-                // 1 - There are still videos to download
-                consumerStream.WriteByte(0);
-
-                // Close the stream and connection
-                consumerStream.Close();
-                consumerClient.Close();
-
-                // Reset the consumer variables
-                consumerIPAddress = null;
-                consumerPortNumber = 0;
-                consumerStream = null;
-                consumerClient = null;
-
-                // Join all producer threads
-                foreach (ProducerThread producerThread in producerThreads)
+                try
                 {
-                    producerThread.Join();
-                }
+                    // First byte says if there are still videos to download
+                    // 0 - No more videos to download
+                    // 1 - There are still videos to download
+                    consumerStream.WriteByte(0);
 
-                Console.WriteLine("All videos sent. Resetting...");
+                    // Close the stream and connection
+                    consumerStream.Close();
+                    consumerClient.Close();
+
+                    // Reset the consumer variables
+                    consumerIPAddress = null;
+                    consumerPortNumber = 0;
+                    consumerStream = null;
+                    consumerClient = null;
+
+                    // Join all producer threads
+                    foreach (ProducerThread producerThread in producerThreads)
+                    {
+                        producerThread.Join();
+                    }
+
+                    Console.WriteLine("[Main Thread] All videos sent. Resetting...");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("[Main Thread] Error finishing video sending: " + ex.Message);
+                }
             }
         }
     }

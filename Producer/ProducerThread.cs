@@ -73,7 +73,7 @@ namespace Producer
                                 break;
 
                             case RequestResult.Duplicate:
-                                Console.WriteLine($"[Producer Thread {id}] Duplicate: Skipping {videoName}.");
+                                Console.WriteLine($"[Producer Thread {id}] Duplicate video. Skipping {videoName}.");
                                 currentVideoIndex++;
                                 state = (currentVideoIndex >= videoNames.Length) ? State.FINISHED : State.WAITING_FOR_RETRY;
                                 break;
@@ -86,44 +86,45 @@ namespace Producer
                             // Wait for the consumer to connect to this port
                             listener = new TcpListener(IPAddress.Any, portNumber);
                             listener.Start();
-                            Console.WriteLine($"Producer Thread {id} is waiting for consumer connection on port {portNumber}...");
+                            Console.WriteLine($"[Producer Thread {id}] Waiting for consumer connection on port {portNumber}...");
 
                             consumerThreadClient = listener.AcceptTcpClient();
                             consumerThreadStream = consumerThreadClient.GetStream();
 
-                            Console.WriteLine($"Producer Thread {id} connected to consumer.");
+                            Console.WriteLine($"[Producer Thread {id}] Connected to consumer.");
 
                             state = State.CURRENTLY_CONNECTED;
                         }
                         catch (Exception ex)
                         {
-                            Console.WriteLine($"Error in Producer Thread {id}: " + ex.Message);
+                            Console.WriteLine($"[Producer Thread {id}] Error connecting to consumer: " + ex.Message);
                         }
                         break;
 
                     case State.CURRENTLY_CONNECTED:
                         try
                         {
-                            // Get the size of the original video file
-                            long originalFileSize = new FileInfo(fullPath).Length;
-
                             // Compress the file and capture the compressed size
                             using FileStream fileStream = File.OpenRead(fullPath);
-                            using MemoryStream compressedStream = new MemoryStream();
-                            using GZipStream gzipStream = new GZipStream(compressedStream, CompressionMode.Compress, true);
+                            using MemoryStream memoryStream = new MemoryStream();
+                            using GZipStream gzipStream = new GZipStream(memoryStream, CompressionMode.Compress, true);
+
                             fileStream.CopyTo(gzipStream);
-                            //fileStream.CopyTo(consumerThreadStream);
+                            gzipStream.Flush();
 
-                            // Get the size of the compressed data
-                            long compressedFileSize = compressedStream.Length;
-
-                            // Log the sizes and compression ratio
-                            Console.WriteLine($"{videoName} file size: {originalFileSize} bytes; Compressed size: {compressedFileSize} bytes");
+                            // Get the compressed data and log the sizes
+                            long originalFileSize = new FileInfo(fullPath).Length;
+                            byte[] compressedData = memoryStream.ToArray();
+                            long compressedFileSize = compressedData.Length;
+                            Console.WriteLine($"[Producer Thread {id}] Compressed {videoName} (file size: {originalFileSize} bytes; Compressed size: {compressedFileSize} bytes)");
 
                             // Send the compressed data to the consumer
-                            compressedStream.Position = 0;
-                            compressedStream.CopyTo(consumerThreadStream);
-                            Console.WriteLine($"Producer Thread {id} finished sending {videoName}.");
+                            consumerThreadStream.Write(compressedData, 0, (int)compressedFileSize);
+                            consumerThreadStream.Flush();
+
+
+                            // Send the compressed data to the consumer
+                            Console.WriteLine($"[Producer Thread {id}] Finished sending {videoName}");
 
                             // Close connection after sending
                             consumerThreadStream.Close();
@@ -147,7 +148,7 @@ namespace Producer
                         }
                         catch (Exception ex)
                         {
-                            Console.WriteLine($"Error sending video: {ex.Message}");
+                            Console.WriteLine($"[Producer Thread {id}] Error sending video: {ex.Message}");
                         }
                         break;
                 }

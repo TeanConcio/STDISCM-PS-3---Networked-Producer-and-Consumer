@@ -44,7 +44,7 @@ namespace Consumer
 
         public static void GetConfig()
         {
-            Console.WriteLine("Getting Configurations from config.txt");
+            Console.WriteLine("[Main Thread] Getting Configurations from config.txt");
             Console.WriteLine();
 
             bool hasErrorWarning = false;
@@ -66,7 +66,7 @@ namespace Consumer
                     case "NUMBER_OF_CONSUMER_THREADS (C)":
                         if (!uint.TryParse(parts[1].Trim(), out uint tempNumConsumerThreads) || tempNumConsumerThreads > int.MaxValue || tempNumConsumerThreads < 1)
                         {
-                            Console.WriteLine($"Error: Invalid Number of Instances. Setting Number of Instances to {DEFAULT_NUMBER_OF_CONSUMER_THREADS}.");
+                            Console.WriteLine($"[Main Thread] Error: Invalid Number of Instances. Setting Number of Instances to {DEFAULT_NUMBER_OF_CONSUMER_THREADS}.");
                             hasErrorWarning = true;
                         }
                         else
@@ -74,7 +74,7 @@ namespace Consumer
                             // Check if very large number of instances
                             if (tempNumConsumerThreads >= 50)
                             {
-                                Console.WriteLine($"Warning: Very large number of threads. Please expect a very long initialization time.");
+                                Console.WriteLine($"[Main Thread] Warning: Very large number of threads. Please expect a very long initialization time.");
                                 hasErrorWarning = true;
                             }
 
@@ -85,7 +85,7 @@ namespace Consumer
                     case "MAX_QUEUE_SIZE (Q)":
                         if (!uint.TryParse(parts[1].Trim(), out uint tempMaxQueueSize) || tempMaxQueueSize > int.MaxValue || tempMaxQueueSize < 1)
                         {
-                            Console.WriteLine($"Error: Invalid Max Queue Size. Setting Max Queue Size to {DEFAULT_MAX_QUEUE_SIZE}.");
+                            Console.WriteLine($"[Main Thread] Error: Invalid Max Queue Size. Setting Max Queue Size to {DEFAULT_MAX_QUEUE_SIZE}.");
                             hasErrorWarning = true;
                         }
                         else
@@ -97,7 +97,7 @@ namespace Consumer
                     case "PRODUCER_IP_ADDRESS":
                         if (!IPAddress.TryParse(parts[1].Trim(), out IPAddress tempProducerIPAddress))
                         {
-                            Console.WriteLine($"Error: Invalid Producer IP Address. Setting Producer IP Address to {DEFAULT_PRODUCER_IP_ADDRESS}.");
+                            Console.WriteLine($"[Main Thread] Error: Invalid Producer IP Address. Setting Producer IP Address to {DEFAULT_PRODUCER_IP_ADDRESS}.");
                             hasErrorWarning = true;
                         }
                         else
@@ -109,7 +109,7 @@ namespace Consumer
                     case "PRODUCER_PORT_NUMBER":
                         if (!ushort.TryParse(parts[1].Trim(), out ushort tempConsumerPortNumber) || tempConsumerPortNumber > ushort.MaxValue || tempConsumerPortNumber < 1)
                         {
-                            Console.WriteLine($"Error: Invalid Producer Port Number. Setting Producer Port Number to {DEFAULT_PRODUCER_PORT_NUMBER}.");
+                            Console.WriteLine($"[Main Thread] Error: Invalid Producer Port Number. Setting Producer Port Number to {DEFAULT_PRODUCER_PORT_NUMBER}.");
                             hasErrorWarning = true;
                         }
                         else
@@ -127,10 +127,10 @@ namespace Consumer
             }
 
             // Print Configurations
-            Console.WriteLine("Number of Consumer Threads: " + numConsumerThreads);
-            Console.WriteLine("Max Queue Size: " + maxQueueSize);
-            Console.WriteLine("Producer IP Address: " + producerIPAddress);
-            Console.WriteLine("Producer Port Number: " + producerPortNumber);
+            Console.WriteLine("[Main Thread] Number of Consumer Threads: " + numConsumerThreads);
+            Console.WriteLine("[Main Thread] Max Queue Size: " + maxQueueSize);
+            Console.WriteLine("[Main Thread] Producer IP Address: " + producerIPAddress);
+            Console.WriteLine("[Main Thread] Producer Port Number: " + producerPortNumber);
 
             Console.WriteLine();
             Console.WriteLine();
@@ -166,7 +166,7 @@ namespace Consumer
         {
             if (producerStream != null)
             {
-                Console.WriteLine("Already connected to producer");
+                Console.WriteLine("[Main Thread] Already connected to producer");
                 MessageBox.Show("Already connected to producer", "Connection", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
@@ -176,22 +176,22 @@ namespace Consumer
                 // Connect to the producer
                 producerClient = new TcpClient();
                 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10)); // Set timeout to 10 seconds
-                Console.WriteLine("Connecting to producer...");
+                Console.WriteLine("[Main Thread] Connecting to producer...");
 
                 producerClient.ConnectAsync(producerIPAddress, (int)producerPortNumber).WaitAsync(cts.Token);
                 producerStream = producerClient.GetStream();
-                Console.WriteLine("Connected to producer");
+                Console.WriteLine("[Main Thread] Connected to producer");
 
                 MessageBox.Show("Connected to producer", "Connection", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (OperationCanceledException)
             {
-                Console.WriteLine("Error: Connection timed out");
+                Console.WriteLine("[Main Thread] Error: Connection timed out");
                 MessageBox.Show("Error: Connection timed out", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Error: " + ex.Message);
+                Console.WriteLine("[Main Thread] Error: " + ex.Message);
                 MessageBox.Show("Error: " + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -200,12 +200,12 @@ namespace Consumer
         {
             if (producerStream == null)
             {
-                Console.WriteLine("Please connect to the producer first");
+                Console.WriteLine("[Main Thread] Please connect to the producer first");
                 MessageBox.Show("Please connect to the producer first", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
 
-            Console.WriteLine("Starting video downloads...");
+            Console.WriteLine("[Main Thread] Starting video downloads...");
 
             // Start consumer threads
             hasVideosToSend = true;
@@ -234,7 +234,7 @@ namespace Consumer
                 consumerThread.Join();
             }
 
-            Console.WriteLine("Download complete");
+            Console.WriteLine("[Main Thread] Download complete");
             MessageBox.Show("Download complete", "Download", MessageBoxButton.OK, MessageBoxImage.Information);
 
             // Reload video list
@@ -260,12 +260,12 @@ namespace Consumer
 
                     // Receive video request
                     VideoRequest videoRequest = VideoRequest.Decode(producerStream);
-                    Console.WriteLine($"Received request: video = {videoRequest.videoName}, port = {videoRequest.producerPort}");
+                    Console.WriteLine($"[Main Thread] Received request: video = {videoRequest.videoName}, port = {videoRequest.producerPort}");
 
 
                     if (existingVideoHashes.Contains(videoRequest.hash))
                     {
-                        Console.WriteLine($"[CONSUMER] Duplicate video detected (hash: {videoRequest.hash}). Rejecting {videoRequest.videoName}.");
+                        Console.WriteLine($"[Main Thread] Duplicate video detected (hash: {videoRequest.hash}). Rejecting {videoRequest.videoName}.");
                         producerStream.WriteByte(2); // new response code for "duplicate"
                         continue; // skip enqueue
                     }
@@ -288,7 +288,7 @@ namespace Consumer
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine("Error: " + ex.Message);
+                    Console.WriteLine("[Main Thread] Error receiving video request: " + ex.Message);
                     MessageBox.Show("Error: " + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
