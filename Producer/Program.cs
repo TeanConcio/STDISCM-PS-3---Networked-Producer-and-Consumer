@@ -36,37 +36,7 @@ namespace Producer
 
 
         // Thread to check if all producer threads are finished
-        private static Thread producerThreadStatusChecker = new Thread(() =>
-        {
-            while (true)
-            {
-                bool allFinished = true;
-                foreach (ProducerThread producerThread in producerThreads)
-                {
-                    if (producerThread.state != ProducerThread.State.FINISHED)
-                    {
-                        allFinished = false;
-                        break;
-                    }
-                }
-                if (allFinished)
-                {
-                    break;
-                }
-            }
-            // Send signal to consumer that all videos are sent
-            lock (streamLock)
-            {
-                // First byte says if there are still videos to download
-                // 0 - No more videos to download
-                // 1 - There are still videos to download
-                consumerStream.WriteByte(0);
-
-                // Close the stream and connection
-                consumerStream.Close();
-                consumerClient.Close();
-            }
-        });
+        private static Thread producerThreadStatusChecker = new Thread(checkProducerThreadStatus);
 
         private static void Main()
         {
@@ -74,12 +44,15 @@ namespace Producer
 
             Initialize();
 
-            ConnectToConsumer();
+            // Infinite loop to keep the program running
+            while (true)
+            {
+                ConnectToConsumer();
+                StartSendingVideoRequests();
+            }
 
-            StartSendingVideoRequests();
-
-            Console.WriteLine("Press any key to exit.");
-            Console.ReadKey();
+            //Console.WriteLine("Press any key to exit.");
+            //Console.ReadKey();
         }
 
         public static void GetConfig()
@@ -159,7 +132,7 @@ namespace Producer
                 string videoFolderPath = mainVideoFolderPath + videoFolderSuffix + i;
                 producerThreads[i] = new ProducerThread(i, videoFolderPath, (ushort)(producerPortNumber + i + 1));
             }
-        }    
+        }
 
         private static void ConnectToConsumer()
         {
@@ -237,6 +210,38 @@ namespace Producer
                     2 => RequestResult.Duplicate,
                     _ => RequestResult.QueueFull,
                 };
+            }
+        }
+
+        private static void checkProducerThreadStatus()
+        {
+            while (true)
+            {
+                bool allFinished = true;
+                foreach (ProducerThread producerThread in producerThreads)
+                {
+                    if (producerThread.state != ProducerThread.State.FINISHED)
+                    {
+                        allFinished = false;
+                        break;
+                    }
+                }
+                if (allFinished)
+                {
+                    break;
+                }
+            }
+            // Send signal to consumer that all videos are sent
+            lock (streamLock)
+            {
+                // First byte says if there are still videos to download
+                // 0 - No more videos to download
+                // 1 - There are still videos to download
+                consumerStream.WriteByte(0);
+
+                // Close the stream and connection
+                consumerStream.Close();
+                consumerClient.Close();
             }
         }
     }
