@@ -61,6 +61,9 @@ namespace Consumer
                 {
                     Console.WriteLine($"Consumer Thread {id} failed to connect to producer at port {request.producerPort}: {ex.Message}");
                 }
+
+                // Give back the slot to the queue
+                Program.videoRequestQueue.IncrementSlotBack();
             }
         }
 

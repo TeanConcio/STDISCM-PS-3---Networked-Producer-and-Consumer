@@ -48,8 +48,8 @@ namespace Consumer
                 if (queue.TryDequeue(out VideoRequest videoRequest))
                 {
                     //// Remove the slot from the queue
-                    //if (currentQueueSize > 0)
-                    //    currentQueueSize--;
+                    if (currentQueueSize > 0)
+                        currentQueueSize--;
 
                     return videoRequest;
                 }
@@ -60,13 +60,13 @@ namespace Consumer
             }
         }
 
-        //public void IncrementSlotBack()
-        //{
-        //    lock (queueLock)
-        //    {
-        //        if (currentQueueSize < maxQueueSize)
-        //            currentQueueSize++;
-        //    }
-        //}
+        public void IncrementSlotBack()
+        {
+            lock (queueLock)
+            {
+                if (currentQueueSize < maxQueueSize)
+                    currentQueueSize++;
+            }
+        }
     }
 }
