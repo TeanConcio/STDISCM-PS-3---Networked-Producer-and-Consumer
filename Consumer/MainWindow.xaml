@@ -23,16 +23,27 @@
             <Button 
                 x:Name="connectBtn" 
                 Content="Connect" 
-                Width="75" 
+                Width="Auto" 
+                Padding="10, 0, 10, 0"
                 Click="connectBtn_Click"
                 />
 
             <Button 
                 x:Name="downloadBtn" 
                 Content="Download" 
-                Width="75" 
+                Width="Auto" 
                 Margin="10, 0, 0, 0"
+                Padding="10, 0, 10, 0"
                 Click="downloadBtn_Click"
+                />
+
+            <Button 
+                x:Name="openVideoFolderBtn" 
+                Content="Open Video Folder" 
+                Width="Auto" 
+                Margin="10, 0, 0, 0"
+                Padding="10, 0, 10, 0"
+                Click="openVideoFolderBtn_Click"
                 />
         </WrapPanel>
 

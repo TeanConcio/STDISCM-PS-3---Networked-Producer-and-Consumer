@@ -22,7 +22,7 @@ public partial class MainWindow : Window
 {
     private static MainWindow _instance;
 
-    private static string videoFolder => Program.videoFolder;
+    private static string videoFolder => System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, Program.videoFolder.Substring(2));
 
     public MainWindow()
     {
@@ -39,6 +39,12 @@ public partial class MainWindow : Window
     private async void downloadBtn_Click(object sender, RoutedEventArgs e)
     {
         Task.Run(async () => { Program.StartDownloadingVideos(); }); 
+    }
+
+    private void openVideoFolderBtn_Click(object sender, RoutedEventArgs e)
+    {
+        // Open the video folder
+        System.Diagnostics.Process.Start("explorer.exe", videoFolder);
     }
 
     public static void AddVideoToList(string videoFileName)
