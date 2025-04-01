@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO.Compression;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -103,10 +104,26 @@ namespace Producer
                         break;
 
                     case State.CURRENTLY_CONNECTED:
-                        //try
+                        try
                         {
+                            // Get the size of the original video file
+                            long originalFileSize = new FileInfo(fullPath).Length;
+
+                            // Compress the file and capture the compressed size
                             using FileStream fileStream = File.OpenRead(fullPath);
-                            fileStream.CopyTo(consumerThreadStream);
+                            using MemoryStream compressedStream = new MemoryStream();
+                            using GZipStream gzipStream = new GZipStream(compressedStream, CompressionMode.Compress, true);
+                            fileStream.CopyTo(gzipStream);
+
+                            // Get the size of the compressed data
+                            long compressedFileSize = compressedStream.Length;
+
+                            // Log the sizes and compression ratio
+                            Console.WriteLine($"{videoName} file size: {originalFileSize} bytes; Compressed size: {compressedFileSize} bytes");
+
+                            // Send the compressed data to the consumer
+                            compressedStream.Position = 0;
+                            compressedStream.CopyTo(consumerThreadStream);
                             Console.WriteLine($"Producer Thread {id} finished sending {videoName}.");
 
                             // Close connection after sending
@@ -129,10 +146,10 @@ namespace Producer
 
                             break;
                         }
-                        //catch (Exception ex)
-                        //{
-                        //    Console.WriteLine($"Error sending video: {ex.Message}");
-                        //}
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Error sending video: {ex.Message}");
+                        }
                         break;
                 }
             }

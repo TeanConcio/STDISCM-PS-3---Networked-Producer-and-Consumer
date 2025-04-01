@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Net.Sockets;
 using System.Text;
@@ -86,9 +87,10 @@ namespace Consumer
                 // Create the file path
                 string filePath = System.IO.Path.Combine(Program.videoFolder, videoName);
 
-                // Receive the file data
+                // Receive file, decompress it, and save it
                 using FileStream fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None);
-                producerThreadStream.CopyTo(fileStream);
+                using GZipStream gzipStream = new GZipStream(producerThreadStream, CompressionMode.Decompress);
+                gzipStream.CopyTo(fileStream);
 
                 Console.WriteLine($"Consumer Thread {id} received video {videoName}");
 
