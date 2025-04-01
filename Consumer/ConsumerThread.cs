@@ -92,6 +92,7 @@ namespace Consumer
                 using FileStream fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None);
                 using GZipStream gzipStream = new GZipStream(producerThreadStream, CompressionMode.Decompress);
                 gzipStream.CopyTo(fileStream);
+                //producerThreadStream.CopyTo(fileStream);
 
                 Console.WriteLine($"Consumer Thread {id} received video {videoName}");
 

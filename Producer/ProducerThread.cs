@@ -57,7 +57,7 @@ namespace Producer
                 {
                     case State.WAITING_FOR_RETRY:
                         // Send video request
-                        string hash = ComputeHash(fullPath);
+                        string hash = VideoRequest.ComputeHash(fullPath);
                         VideoRequest videoRequest = new VideoRequest(portNumber, videoName, hash);
                         var result = Program.SendVideoRequest(id, videoRequest);
 
@@ -112,6 +112,7 @@ namespace Producer
                             using MemoryStream compressedStream = new MemoryStream();
                             using GZipStream gzipStream = new GZipStream(compressedStream, CompressionMode.Compress, true);
                             fileStream.CopyTo(gzipStream);
+                            //fileStream.CopyTo(consumerThreadStream);
 
                             // Get the size of the compressed data
                             long compressedFileSize = compressedStream.Length;
@@ -151,14 +152,6 @@ namespace Producer
                         break;
                 }
             }
-        }
-
-        public static string ComputeHash(string path)
-        {
-            using var sha = System.Security.Cryptography.SHA256.Create();
-            using var stream = File.OpenRead(path);
-            byte[] hash = sha.ComputeHash(stream);
-            return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
         }
 
         public void Start()

@@ -4,7 +4,6 @@ using System.Linq;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
-using System.Xml.Linq;
 
 namespace Producer
 {
@@ -19,6 +18,14 @@ namespace Producer
             this.producerPort = producerPort;
             this.videoName = videoName;
             this.hash = hash;
+        }
+
+        public static string ComputeHash(string path)
+        {
+            using var sha = System.Security.Cryptography.SHA256.Create();
+            using var stream = System.IO.File.OpenRead(path);
+            byte[] hash = sha.ComputeHash(stream);
+            return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
         }
 
         // Function to decode VideoRequest from stream
@@ -39,7 +46,7 @@ namespace Producer
             _ = stream.Read(videoNameBytes, 0, videoNameBytes.Length);
             string videoName = Encoding.UTF8.GetString(videoNameBytes);
 
-            // Read hash
+            // Get hash
             byte[] hashLenBytes = new byte[4];
             stream.Read(hashLenBytes, 0, 4);
             int hashLen = BitConverter.ToInt32(hashLenBytes, 0);

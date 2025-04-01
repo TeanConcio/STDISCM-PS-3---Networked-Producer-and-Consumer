@@ -147,6 +147,19 @@ namespace Consumer
 
             // Initialize video request queue
             videoRequestQueue = new VideoRequestQueue();
+
+            // Create video folder if it does not exist
+            if (!Directory.Exists(videoFolder))
+            {
+                Directory.CreateDirectory(videoFolder);
+            }
+
+            // Load existing video hashes from the video folder
+            foreach (string file in Directory.GetFiles(videoFolder))
+            {
+                string hash = VideoRequest.ComputeHash(file);
+                existingVideoHashes.Add(hash);
+            }
         }
 
         public static void ConnectToProducer()

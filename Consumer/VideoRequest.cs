@@ -20,6 +20,14 @@ namespace Consumer
             this.hash = hash;
         }
 
+        public static string ComputeHash(string path)
+        {
+            using var sha = System.Security.Cryptography.SHA256.Create();
+            using var stream = System.IO.File.OpenRead(path);
+            byte[] hash = sha.ComputeHash(stream);
+            return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
+        }
+
         // Function to decode VideoRequest from stream
         public static VideoRequest Decode(NetworkStream stream)
         {
@@ -38,7 +46,7 @@ namespace Consumer
             _ = stream.Read(videoNameBytes, 0, videoNameBytes.Length);
             string videoName = Encoding.UTF8.GetString(videoNameBytes);
 
-            //Get hash
+            // Get hash
             byte[] hashLenBytes = new byte[4];
             stream.Read(hashLenBytes, 0, 4);
             int hashLen = BitConverter.ToInt32(hashLenBytes, 0);
@@ -62,6 +70,13 @@ namespace Consumer
 
             // Add video name
             bytes.AddRange(Encoding.UTF8.GetBytes(videoRequest.videoName));
+
+            // Add hash length (4 bytes)
+            byte[] hashBytes = Encoding.UTF8.GetBytes(videoRequest.hash);
+            bytes.AddRange(BitConverter.GetBytes(hashBytes.Length));
+
+            // Add hash string
+            bytes.AddRange(hashBytes);
 
             return bytes.ToArray();
         }
