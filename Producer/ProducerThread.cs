@@ -43,8 +43,6 @@ namespace Producer
 
             // Get video names
             videoNames = Directory.GetFiles(videoFolderPath, "*.mp4");
-
-            thread = new Thread(Run);
         }
 
         public void Run()
@@ -165,12 +163,17 @@ namespace Producer
 
         public void Start()
         {
+            currentVideoIndex = 0;
+            state = State.WAITING_FOR_RETRY;
+
+            thread = new Thread(Run);
             thread.Start();
         }
 
         public void Join()
         {
-            thread.Join();
+            if (thread != null && thread.IsAlive)
+                thread.Join();
         }
     }
 }

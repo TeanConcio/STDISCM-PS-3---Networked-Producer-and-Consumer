@@ -22,8 +22,6 @@ namespace Consumer
         public ConsumerThread(uint id)
         {
             this.id = id;
-
-            thread = new Thread(Run);
         }
 
         public void Run()
@@ -109,12 +107,14 @@ namespace Consumer
 
         public void Start()
         {
+            thread = new Thread(Run);
             thread.Start();
         }
 
         public void Join()
         {
-            thread.Join();
+            if (thread != null && thread.IsAlive)
+                thread.Join();
         }
     }
 }

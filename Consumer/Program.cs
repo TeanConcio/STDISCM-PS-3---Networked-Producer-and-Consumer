@@ -151,6 +151,13 @@ namespace Consumer
 
         public static void ConnectToProducer()
         {
+            if (producerStream != null)
+            {
+                Console.WriteLine("Already connected to producer");
+                MessageBox.Show("Already connected to producer", "Connection", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
             try
             {
                 // Connect to the producer
@@ -203,8 +210,16 @@ namespace Consumer
             // Disconnect from producer
             producerStream.Close();
             producerClient.Close();
+
+            // Reset producer variables
             producerStream = null;
             producerClient = null;
+
+            // Join consumer threads
+            foreach (ConsumerThread consumerThread in consumerThreads)
+            {
+                consumerThread.Join();
+            }
 
             Console.WriteLine("Download complete");
             MessageBox.Show("Download complete", "Download", MessageBoxButton.OK, MessageBoxImage.Information);

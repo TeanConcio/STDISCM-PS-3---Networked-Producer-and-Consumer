@@ -24,10 +24,10 @@ namespace Producer
         private const string videoFolderSuffix = "/video_folder_";
 
         // Consumer variables
-        private static IPAddress consumerIPAddress;
-        private static ushort consumerPortNumber;
         private static TcpClient consumerClient;
         private static NetworkStream consumerStream;
+        private static IPAddress consumerIPAddress;
+        private static ushort consumerPortNumber;
 
         // Producer Threads
         private static ProducerThread[] producerThreads;
@@ -36,7 +36,7 @@ namespace Producer
 
 
         // Thread to check if all producer threads are finished
-        private static Thread producerThreadStatusChecker = new Thread(checkProducerThreadStatus);
+        private static Thread producerThreadStatusChecker;
 
         private static void Main()
         {
@@ -154,6 +154,9 @@ namespace Producer
                 consumerIPAddress = ((IPEndPoint)consumerClient.Client.RemoteEndPoint).Address;
                 consumerPortNumber = (ushort)((IPEndPoint)consumerClient.Client.RemoteEndPoint).Port;
                 Console.WriteLine($"Consumer connected from {consumerIPAddress}:{consumerPortNumber}");
+
+                listener.Stop();
+                listener = null;
             }
             catch (Exception ex)
             {
@@ -176,7 +179,11 @@ namespace Producer
                 }
 
                 // Start producer thread status checker
+                producerThreadStatusChecker = new Thread(checkProducerThreadStatus);
                 producerThreadStatusChecker.Start();
+
+                // Wait for producer threads to finish
+                producerThreadStatusChecker.Join();
             }
             catch (Exception ex)
             {
@@ -231,6 +238,7 @@ namespace Producer
                     break;
                 }
             }
+
             // Send signal to consumer that all videos are sent
             lock (streamLock)
             {
@@ -242,6 +250,20 @@ namespace Producer
                 // Close the stream and connection
                 consumerStream.Close();
                 consumerClient.Close();
+
+                // Reset the consumer variables
+                consumerIPAddress = null;
+                consumerPortNumber = 0;
+                consumerStream = null;
+                consumerClient = null;
+
+                // Join all producer threads
+                foreach (ProducerThread producerThread in producerThreads)
+                {
+                    producerThread.Join();
+                }
+
+                Console.WriteLine("All videos sent. Resetting...");
             }
         }
     }
