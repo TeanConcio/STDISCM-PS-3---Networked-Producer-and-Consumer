@@ -162,13 +162,13 @@ namespace Consumer
             }
         }
 
-        public static void ConnectToProducer()
+        public static bool ConnectToProducer()
         {
             if (producerStream != null)
             {
                 Console.WriteLine("[Main Thread] Already connected to producer");
                 MessageBox.Show("Already connected to producer", "Connection", MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
+                return false;
             }
 
             try
@@ -183,62 +183,77 @@ namespace Consumer
                 Console.WriteLine("[Main Thread] Connected to producer");
 
                 MessageBox.Show("Connected to producer", "Connection", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                return true;
             }
             catch (OperationCanceledException)
             {
                 Console.WriteLine("[Main Thread] Error: Connection timed out");
                 MessageBox.Show("Error: Connection timed out", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                return false;
             }
             catch (Exception ex)
             {
                 Console.WriteLine("[Main Thread] Error: " + ex.Message);
                 MessageBox.Show("Error: " + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                return false;
             }
         }
 
-        public static void StartDownloadingVideos()
+        public static bool StartDownloadingVideos()
         {
             if (producerStream == null)
             {
                 Console.WriteLine("[Main Thread] Please connect to the producer first");
                 MessageBox.Show("Please connect to the producer first", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                return;
+                return false;
             }
 
-            Console.WriteLine("[Main Thread] Starting video downloads...");
-
-            // Start consumer threads
-            hasVideosToSend = true;
-            foreach (ConsumerThread consumerThread in consumerThreads)
+            try
             {
-                consumerThread.Start();
+                Console.WriteLine("[Main Thread] Starting video downloads...");
+
+                // Start consumer threads
+                hasVideosToSend = true;
+                foreach (ConsumerThread consumerThread in consumerThreads)
+                {
+                    consumerThread.Start();
+                }
+
+                // Send single byte to producer to start sending videos
+                producerStream.WriteByte(1);
+
+                // Start receiving video requests
+                ReceiveVideoRequests();
+
+                // Disconnect from producer
+                producerStream.Close();
+                producerClient.Close();
+
+                // Reset producer variables
+                producerStream = null;
+                producerClient = null;
+
+                // Join consumer threads
+                foreach (ConsumerThread consumerThread in consumerThreads)
+                {
+                    consumerThread.Join();
+                }
+
+                Console.WriteLine("[Main Thread] Download complete");
+                MessageBox.Show("Download complete", "Download", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                // Reload video list
+                //MainWindow.ReloadVideoList();
+
+                return true;
             }
-
-            // Send single byte to producer to start sending videos
-            producerStream.WriteByte(1);
-
-            // Start receiving video requests
-            ReceiveVideoRequests();
-
-            // Disconnect from producer
-            producerStream.Close();
-            producerClient.Close();
-
-            // Reset producer variables
-            producerStream = null;
-            producerClient = null;
-
-            // Join consumer threads
-            foreach (ConsumerThread consumerThread in consumerThreads)
+            catch (Exception ex)
             {
-                consumerThread.Join();
+                Console.WriteLine("[Main Thread] Error downloading videos: " + ex.Message);
+                MessageBox.Show("Error downloading videos: " + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                return false;
             }
-
-            Console.WriteLine("[Main Thread] Download complete");
-            MessageBox.Show("Download complete", "Download", MessageBoxButton.OK, MessageBoxImage.Information);
-
-            // Reload video list
-            //MainWindow.ReloadVideoList();
         }
 
         public static void ReceiveVideoRequests()

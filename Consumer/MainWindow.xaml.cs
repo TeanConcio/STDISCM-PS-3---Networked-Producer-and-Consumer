@@ -22,6 +22,9 @@ public partial class MainWindow : Window
 {
     private static MainWindow _instance;
 
+    private DispatcherTimer _previewTimer;
+    private ListBoxItem _currentlyPlayingItem;
+
     private static string videoFolder => System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, Program.videoFolder.Substring(2));
 
     public MainWindow()
@@ -33,12 +36,34 @@ public partial class MainWindow : Window
 
     private async void connectBtn_Click(object sender, RoutedEventArgs e)
     {
-        Task.Run(async () => { Program.ConnectToProducer(); });
+        statusLabel.Content = "Connecting to Producer...";
+
+        bool success = false;
+        await Task.Run(() =>
+        {
+            success = Program.ConnectToProducer();
+        });
+
+        if (success)
+            statusLabel.Content = "Connected to Producer";
+        else
+            statusLabel.Content = "Failed to connect to Producer";
     }
 
     private async void downloadBtn_Click(object sender, RoutedEventArgs e)
     {
-        Task.Run(async () => { Program.StartDownloadingVideos(); }); 
+        statusLabel.Content = "Downloading videos...";
+
+        bool success = false;
+        await Task.Run(() =>
+        {
+            success = Program.StartDownloadingVideos();
+        });
+
+        if (success)
+            statusLabel.Content = "Videos downloaded";
+        else
+            statusLabel.Content = "Failed to download videos";
     }
 
     private void openVideoFolderBtn_Click(object sender, RoutedEventArgs e)
@@ -76,56 +101,98 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            Console.WriteLine("Error: " + ex.Message);
-            MessageBox.Show("Error: " + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            Console.WriteLine("[UI Thread] Error reloading videos: " + ex.Message);
+            MessageBox.Show("[UI Thread] Error reloading videos: " + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
     private void ListBoxItem_MouseEnter(object sender, MouseEventArgs e)
     {
-        try {
+        try
+        {
             if (sender is ListBoxItem item && item.Content != null)
             {
+                // Stop the current preview if another item is being previewed
+                if (_currentlyPlayingItem != null && _currentlyPlayingItem != item)
+                {
+                    PreviewPlayer.Stop();
+                    _currentlyPlayingItem.MouseLeave -= ListBoxItem_MouseLeave;
+                }
+
+                // Stop the existing timer if it is running
+                _previewTimer?.Stop();
+
+                _currentlyPlayingItem = item;
+
                 string videoFileName = item.Content.ToString();
                 string selectedVideoPath = System.IO.Path.Combine(videoFolder, videoFileName);
                 PreviewPlayer.Source = new Uri(selectedVideoPath, UriKind.Relative);
                 PreviewPlayer.Position = TimeSpan.Zero;
+
+                PreviewPlayer.LoadedBehavior = MediaState.Manual;
+                PreviewPlayer.UnloadedBehavior = MediaState.Manual;
+
                 PreviewPlayer.Play();
 
-                var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(10) };
-                timer.Tick += (s, args) =>
+                _previewTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(10) };
+                _previewTimer.Tick += (s, args) =>
                 {
                     PreviewPlayer.Stop();
-                    timer.Stop();
+                    _previewTimer.Stop();
+                    _currentlyPlayingItem = null;
                 };
-                timer.Start();
+                _previewTimer.Start();
+
+                item.MouseLeave += ListBoxItem_MouseLeave;
             }
         }
-        catch (Exception ex) {
-            Console.WriteLine("Error: " + ex.Message);
-            MessageBox.Show("Error: " + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        catch (Exception ex)
+        {
+            Console.WriteLine("[UI Thread] Error previewing video: " + ex.Message);
+            MessageBox.Show("[UI Thread] Error previewing video: " + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void ListBoxItem_MouseLeave(object sender, MouseEventArgs e)
+    {
+        if (sender is ListBoxItem item)
+        {
+            PreviewPlayer.Stop();
+            item.MouseLeave -= ListBoxItem_MouseLeave;
+            _currentlyPlayingItem = null;
+
+            // Stop the timer when the mouse leaves the item
+            _previewTimer?.Stop();
         }
     }
 
     private void ListBoxItem_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
-        if (sender is ListBoxItem item && item.Content != null)
+        try
         {
-            string videoFileName = item.Content.ToString();
-            string selectedVideoPath = System.IO.Path.Combine(videoFolder, videoFileName);
-            Window window = new Window
+            if (sender is ListBoxItem item && item.Content != null)
             {
-                Title = "Video Player",
-                Content = new MediaElement
+                string videoFileName = item.Content.ToString();
+                string selectedVideoPath = System.IO.Path.Combine(videoFolder, videoFileName);
+                Window window = new Window
                 {
-                    Source = new Uri(selectedVideoPath, UriKind.Relative),
-                    LoadedBehavior = MediaState.Play,
-                    Stretch = Stretch.Uniform
-                },
-                Width = 800,
-                Height = 600
-            };
-            window.Show();
+                    Title = "Video Player",
+                    Content = new MediaElement
+                    {
+                        Source = new Uri(selectedVideoPath, UriKind.Relative),
+                        LoadedBehavior = MediaState.Play,
+                        Stretch = Stretch.Uniform
+                    },
+                    Width = 800,
+                    Height = 600
+                };
+                window.Show();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("[UI Thread] Error showing video: " + ex.Message);
+            MessageBox.Show("[UI Thread] Error showing video: " + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 }

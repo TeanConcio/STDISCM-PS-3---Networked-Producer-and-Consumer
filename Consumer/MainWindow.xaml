@@ -5,17 +5,18 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Consumer"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
-    
+        Title="STDISCM PS3 - Networked Producer and Consumer (S11; Concio, Montenegro, Sia, Yu)" Height="450" Width="800">
+
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="40"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
         <WrapPanel
             Grid.Row="0"
-            Margin="10,10,10,10"
+            Margin="10,10,10,0"
             Width="Auto"
             Height="Auto"
             Orientation="Horizontal"
@@ -47,8 +48,30 @@
                 />
         </WrapPanel>
 
+        <WrapPanel
+            Grid.Row="01"
+            Width="Auto"
+            Height="Auto"
+            Orientation="Horizontal"
+            >
+
+            <Label 
+                Content="Status:" 
+                Width="Auto" 
+                Padding="10, 0, 10, 0"
+                />
+
+            <Label 
+                x:Name="statusLabel"
+                Content="App Started" 
+                Width="Auto" 
+                Padding="0, 0, 10, 0"
+                />
+
+        </WrapPanel>
+
         <Grid
-            Grid.Row="1"
+            Grid.Row="2"
             Margin="10,10,10,10"
             >
             <Grid.ColumnDefinitions>
@@ -68,6 +91,7 @@
                     <ListBox.ItemContainerStyle>
                         <Style TargetType="ListBoxItem">
                             <EventSetter Event="MouseEnter" Handler="ListBoxItem_MouseEnter"/>
+                            <EventSetter Event="MouseLeave" Handler="ListBoxItem_MouseLeave"/>
                             <EventSetter Event="MouseDoubleClick" Handler="ListBoxItem_MouseDoubleClick"/>
                         </Style>
                     </ListBox.ItemContainerStyle>
