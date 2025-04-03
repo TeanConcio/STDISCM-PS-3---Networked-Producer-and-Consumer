@@ -177,8 +177,11 @@ namespace Consumer
                 producerClient = new TcpClient();
                 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10)); // Set timeout to 10 seconds
                 Console.WriteLine("[Main Thread] Connecting to producer...");
-
-                producerClient.ConnectAsync(producerIPAddress, (int)producerPortNumber).WaitAsync(cts.Token);
+                var connectTask = producerClient.ConnectAsync(producerIPAddress, (int)producerPortNumber);
+                if (!connectTask.Wait(TimeSpan.FromSeconds(10)))
+                {
+                    throw new TimeoutException("Connection to producer timed out.");
+                }
                 producerStream = producerClient.GetStream();
                 Console.WriteLine("[Main Thread] Connected to producer");
 
