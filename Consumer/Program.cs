@@ -72,7 +72,7 @@ namespace Consumer
                         else
                         {
                             // Check if very large number of instances
-                            if (tempNumConsumerThreads >= 50)
+                            if (tempNumConsumerThreads >= 10)
                             {
                                 Console.WriteLine($"[Main Thread] Warning: Very large number of threads. Please expect a very long initialization time.");
                                 hasErrorWarning = true;

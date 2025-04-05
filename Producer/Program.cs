@@ -85,7 +85,7 @@ namespace Producer
                         else
                         {
                             // Check if very large number of instances
-                            if (tempNumProducerThreads >= 50)
+                            if (tempNumProducerThreads >= 10)
                             {
                                 Console.WriteLine($"[Main Thread] Warning: Very large number of threads. Please expect a very long initialization time.");
                                 hasErrorWarning = true;

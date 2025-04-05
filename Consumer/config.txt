@@ -9,6 +9,6 @@ MAX_QUEUE_SIZE (q) = 3
 PRODUCER_IP_ADDRESS = 
 # DEFAULT: 127.0.0.1
 
-PRODUCER_PRODUCER_PORT_NUMBER = 
+PRODUCER_PORT_NUMBER = 
 # Next p number of ports must be open for the producer threads to connect to consumer
 # DEFAULT: 9000
