@@ -1,0 +1,11 @@
+Time Stamps
+
+ 0:04	The network setup. 
+ 1:04	High Level Overview of the Algorithm
+ 3:22	Showcase the producer process.  
+ 	Threading implementation of the producer process.
+ 5:22	How does the consumer process receive the files.
+ 	Threading implementation of the consumer procress.
+ 7:51	How uploads are limited.
+ 10:25	Video preview on hover.
+ 10:46	Video playback.
